@@ -1,0 +1,129 @@
+# [No.1] construct_wrapper.1
+# In file C:\Users\Atom\AppData\Local\Temp\ipykernel_20772\3068941590.py(9)/
+funcgraph fg_1(
+        %para1 : Tensor(F32)[1, 3, 320, 320]    # x
+    ) {
+
+#------------------------> 0
+    %1 = FuncGraph::fg_5(%para1)    #(Tensor(F32)[1, 3, 320, 320])    # fg_5=construct.5 #scope: Default
+#[CNode]6
+    Primitive::Return{prim_type=1}(%1)    #(Undefined) #scope: Default
+      # In file C:\Users\Atom\AppData\Local\Temp\ipykernel_20772\3068941590.py(14)/#[CNode]7
+}
+# order:
+#   1: construct_wrapper.1:[CNode]6{[0]: ValueNode<FuncGraph> construct.5, [1]: x}
+#   2: construct_wrapper.1:[CNode]7{[0]: ValueNode<Primitive> Return, [1]: [CNode]6}
+
+
+# [No.2] construct.5
+# In file C:\Users\Atom\AppData\Local\Temp\ipykernel_20772\3068941590.py(9)/
+funcgraph fg_5(
+        %para2 : Tensor(F32)[1, 3, 320, 320]    # x
+    ) {
+    %1 : Tuple[I64*4] = DoSignaturePrimitive::S-Prim-Shape{prim_type=1}(%para2)    #(Tensor(F32)[1, 3, 320, 320]) #scope: Default
+      # In file C:\Users\Atom\AppData\Local\Temp\ipykernel_20772\3068941590.py(10)/#[CNode]8
+    %2 : I64 = DoSignaturePrimitive::S-Prim-getitem{prim_type=1}(%1, I64(0))    #(Tuple[I64*4], I64) #scope: Default
+      # In file C:\Users\Atom\AppData\Local\Temp\ipykernel_20772\3068941590.py(10)/#batchsize
+    %3 : I64 = DoSignaturePrimitive::S-Prim-getitem{prim_type=1}(%1, I64(1))    #(Tuple[I64*4], I64) #scope: Default
+      # In file C:\Users\Atom\AppData\Local\Temp\ipykernel_20772\3068941590.py(10)/#num_channels
+    %4 : I64 = DoSignaturePrimitive::S-Prim-mul{prim_type=1}(%2, %3)    #(I64, I64) #scope: Default
+      # In file C:\Users\Atom\AppData\Local\Temp\ipykernel_20772\3068941590.py(11)/#[CNode]9
+    %5 : I64 = DoSignaturePrimitive::S-Prim-floordiv{prim_type=1}(%4, I64(2))    #(I64, I64) #scope: Default
+      # In file C:\Users\Atom\AppData\Local\Temp\ipykernel_20772\3068941590.py(11)/#[CNode]10
+    %6 : I64 = DoSignaturePrimitive::S-Prim-getitem{prim_type=1}(%1, I64(2))    #(Tuple[I64*4], I64) #scope: Default
+      # In file C:\Users\Atom\AppData\Local\Temp\ipykernel_20772\3068941590.py(10)/#height
+    %7 : I64 = DoSignaturePrimitive::S-Prim-getitem{prim_type=1}(%1, I64(3))    #(Tuple[I64*4], I64) #scope: Default
+      # In file C:\Users\Atom\AppData\Local\Temp\ipykernel_20772\3068941590.py(10)/#width
+    %8 : I64 = DoSignaturePrimitive::S-Prim-mul{prim_type=1}(%6, %7)    #(I64, I64) #scope: Default
+      # In file C:\Users\Atom\AppData\Local\Temp\ipykernel_20772\3068941590.py(11)/#[CNode]11
+    %9 : Tuple[I64*3] = DoSignaturePrimitive::S-Prim-MakeTuple{prim_type=1}(%5, I64(2), %8)    #(I64, I64, I64) #scope: Default
+      # In file C:\Users\Atom\AppData\Local\Temp\ipykernel_20772\3068941590.py(11)/#[CNode]12
+
+#------------------------> 1
+    %10 = DoSignaturePrimitive::S-Prim-Reshape{prim_type=1}[output_names=["output"], input_names=["tensor", "shape"]](%para2, %9)    #(Tensor(F32)[1, 3, 320, 320], Tuple[I64*3]) #scope: Default
+      # In file C:\Users\Atom\AppData\Local\Temp\ipykernel_20772\3068941590.py(11)/#x
+    %11 = DoSignaturePrimitive::S-Prim-MakeTuple{prim_type=1}(I64(1), I64(0), I64(2))    #(Undefined, Undefined, Undefined) #scope: Default
+      # In file C:\Users\Atom\AppData\Local\Temp\ipykernel_20772\3068941590.py(12)/#[CNode]13
+    %12 = DoSignaturePrimitive::S-Prim-Transpose{prim_type=1}[output_names=["output"], input_names=["x", "perm"]](%10, %11)    #(Undefined, Undefined) #scope: Default
+      # In file C:\Users\Atom\AppData\Local\Temp\ipykernel_20772\3068941590.py(12)/#x
+    %13 = DoSignaturePrimitive::S-Prim-negative{prim_type=1}(I64(1))    #(Undefined) #scope: Default
+      # In file C:\Users\Atom\AppData\Local\Temp\ipykernel_20772\3068941590.py(13)/#[CNode]14
+    %14 = DoSignaturePrimitive::S-Prim-floordiv{prim_type=1}(%3, I64(2))    #(I64, Undefined) #scope: Default
+      # In file C:\Users\Atom\AppData\Local\Temp\ipykernel_20772\3068941590.py(13)/#[CNode]15
+    %15 = DoSignaturePrimitive::S-Prim-MakeTuple{prim_type=1}(I64(2), %13, %14, %6, %7)    #(Undefined, Undefined, Undefined, I64, I64) #scope: Default
+      # In file C:\Users\Atom\AppData\Local\Temp\ipykernel_20772\3068941590.py(13)/#[CNode]16
+    %16 = DoSignaturePrimitive::S-Prim-Reshape{prim_type=1}[output_names=["output"], input_names=["tensor", "shape"]](%12, %15)    #(Undefined, Undefined) #scope: Default
+      # In file C:\Users\Atom\AppData\Local\Temp\ipykernel_20772\3068941590.py(13)/#x
+    %17 = DoSignaturePrimitive::S-Prim-make_slice{prim_type=1}(I64(0), I64(1), None)    #(Undefined, Undefined, Undefined) #scope: Default
+      # In file C:\Users\Atom\AppData\Local\Temp\ipykernel_20772\3068941590.py(14)/#[CNode]17
+    %18 = DoSignaturePrimitive::S-Prim-make_slice{prim_type=1}(None, None, None)    #(Undefined, Undefined, Undefined) #scope: Default
+      # In file C:\Users\Atom\AppData\Local\Temp\ipykernel_20772\3068941590.py(14)/#[CNode]18
+    %19 = DoSignaturePrimitive::S-Prim-make_slice{prim_type=1}(None, None, None)    #(Undefined, Undefined, Undefined) #scope: Default
+      # In file C:\Users\Atom\AppData\Local\Temp\ipykernel_20772\3068941590.py(14)/#[CNode]19
+    %20 = DoSignaturePrimitive::S-Prim-make_slice{prim_type=1}(None, None, None)    #(Undefined, Undefined, Undefined) #scope: Default
+      # In file C:\Users\Atom\AppData\Local\Temp\ipykernel_20772\3068941590.py(14)/#[CNode]20
+    %21 = DoSignaturePrimitive::S-Prim-make_slice{prim_type=1}(None, None, None)    #(Undefined, Undefined, Undefined) #scope: Default
+      # In file C:\Users\Atom\AppData\Local\Temp\ipykernel_20772\3068941590.py(14)/#[CNode]21
+    %22 = DoSignaturePrimitive::S-Prim-MakeTuple{prim_type=1}(%17, %18, %19, %20, %21)    #(Undefined, Undefined, Undefined, Undefined, Undefined) #scope: Default
+      # In file C:\Users\Atom\AppData\Local\Temp\ipykernel_20772\3068941590.py(14)/#[CNode]22
+    %23 = DoSignaturePrimitive::S-Prim-getitem{prim_type=1}(%16, %22)    #(Undefined, Undefined) #scope: Default
+      # In file C:\Users\Atom\AppData\Local\Temp\ipykernel_20772\3068941590.py(14)/#[CNode]23
+    %24 = DoSignaturePrimitive::S-Prim-negative{prim_type=1}(I64(1))    #(Undefined) #scope: Default
+      # In file C:\Users\Atom\AppData\Local\Temp\ipykernel_20772\3068941590.py(14)/#[CNode]24
+    %25 = DoSignaturePrimitive::S-Prim-make_slice{prim_type=1}(%24, None, None)    #(Undefined, Undefined, Undefined) #scope: Default
+      # In file C:\Users\Atom\AppData\Local\Temp\ipykernel_20772\3068941590.py(14)/#[CNode]25
+    %26 = DoSignaturePrimitive::S-Prim-make_slice{prim_type=1}(None, None, None)    #(Undefined, Undefined, Undefined) #scope: Default
+      # In file C:\Users\Atom\AppData\Local\Temp\ipykernel_20772\3068941590.py(14)/#[CNode]26
+    %27 = DoSignaturePrimitive::S-Prim-make_slice{prim_type=1}(None, None, None)    #(Undefined, Undefined, Undefined) #scope: Default
+      # In file C:\Users\Atom\AppData\Local\Temp\ipykernel_20772\3068941590.py(14)/#[CNode]27
+    %28 = DoSignaturePrimitive::S-Prim-make_slice{prim_type=1}(None, None, None)    #(Undefined, Undefined, Undefined) #scope: Default
+      # In file C:\Users\Atom\AppData\Local\Temp\ipykernel_20772\3068941590.py(14)/#[CNode]28
+    %29 = DoSignaturePrimitive::S-Prim-make_slice{prim_type=1}(None, None, None)    #(Undefined, Undefined, Undefined) #scope: Default
+      # In file C:\Users\Atom\AppData\Local\Temp\ipykernel_20772\3068941590.py(14)/#[CNode]29
+    %30 = DoSignaturePrimitive::S-Prim-MakeTuple{prim_type=1}(%25, %26, %27, %28, %29)    #(Undefined, Undefined, Undefined, Undefined, Undefined) #scope: Default
+      # In file C:\Users\Atom\AppData\Local\Temp\ipykernel_20772\3068941590.py(14)/#[CNode]30
+    %31 = DoSignaturePrimitive::S-Prim-getitem{prim_type=1}(%16, %30)    #(Undefined, Undefined) #scope: Default
+      # In file C:\Users\Atom\AppData\Local\Temp\ipykernel_20772\3068941590.py(14)/#[CNode]31
+    %32 = DoSignaturePrimitive::S-Prim-MakeTuple{prim_type=1}(%23, %31)    #(Undefined, Undefined) #scope: Default
+      # In file C:\Users\Atom\AppData\Local\Temp\ipykernel_20772\3068941590.py(14)/#[CNode]32
+    Primitive::Return{prim_type=1}(%32)    #(Undefined) #scope: Default
+      # In file C:\Users\Atom\AppData\Local\Temp\ipykernel_20772\3068941590.py(14)/#[CNode]33
+}
+# order:
+#   1: construct.5:[CNode]8{[0]: ValueNode<DoSignaturePrimitive> S-Prim-Shape, [1]: x}
+#   2: construct.5:batchsize{[0]: ValueNode<DoSignaturePrimitive> S-Prim-getitem, [1]: [CNode]8, [2]: ValueNode<Int64Imm> 0}
+#   3: construct.5:num_channels{[0]: ValueNode<DoSignaturePrimitive> S-Prim-getitem, [1]: [CNode]8, [2]: ValueNode<Int64Imm> 1}
+#   4: construct.5:height{[0]: ValueNode<DoSignaturePrimitive> S-Prim-getitem, [1]: [CNode]8, [2]: ValueNode<Int64Imm> 2}
+#   5: construct.5:width{[0]: ValueNode<DoSignaturePrimitive> S-Prim-getitem, [1]: [CNode]8, [2]: ValueNode<Int64Imm> 3}
+#   6: construct.5:[CNode]9{[0]: ValueNode<DoSignaturePrimitive> S-Prim-mul, [1]: batchsize, [2]: num_channels}
+#   7: construct.5:[CNode]10{[0]: ValueNode<DoSignaturePrimitive> S-Prim-floordiv, [1]: [CNode]9, [2]: ValueNode<Int64Imm> 2}
+#   8: construct.5:[CNode]11{[0]: ValueNode<DoSignaturePrimitive> S-Prim-mul, [1]: height, [2]: width}
+#   9: construct.5:[CNode]12{[0]: ValueNode<DoSignaturePrimitive> S-Prim-MakeTuple, [1]: [CNode]10, [2]: ValueNode<Int64Imm> 2, [3]: [CNode]11}
+#  10: construct.5:x{[0]: ValueNode<DoSignaturePrimitive> S-Prim-Reshape, [1]: x, [2]: [CNode]12}
+#  11: construct.5:[CNode]13{[0]: ValueNode<DoSignaturePrimitive> S-Prim-MakeTuple, [1]: ValueNode<Int64Imm> 1, [2]: ValueNode<Int64Imm> 0, [3]: ValueNode<Int64Imm> 2}
+#  12: construct.5:x{[0]: ValueNode<DoSignaturePrimitive> S-Prim-Transpose, [1]: x, [2]: [CNode]13}
+#  13: construct.5:[CNode]14{[0]: ValueNode<DoSignaturePrimitive> S-Prim-negative, [1]: ValueNode<Int64Imm> 1}
+#  14: construct.5:[CNode]15{[0]: ValueNode<DoSignaturePrimitive> S-Prim-floordiv, [1]: num_channels, [2]: ValueNode<Int64Imm> 2}
+#  15: construct.5:[CNode]16{[0]: ValueNode<DoSignaturePrimitive> S-Prim-MakeTuple, [1]: ValueNode<Int64Imm> 2, [2]: [CNode]14, [3]: [CNode]15, [4]: height, [5]: width}
+#  16: construct.5:x{[0]: ValueNode<DoSignaturePrimitive> S-Prim-Reshape, [1]: x, [2]: [CNode]16}
+#  17: construct.5:[CNode]17{[0]: ValueNode<DoSignaturePrimitive> S-Prim-make_slice, [1]: ValueNode<Int64Imm> 0, [2]: ValueNode<Int64Imm> 1, [3]: ValueNode<None> None}
+#  18: construct.5:[CNode]18{[0]: ValueNode<DoSignaturePrimitive> S-Prim-make_slice, [1]: ValueNode<None> None, [2]: ValueNode<None> None, [3]: ValueNode<None> None}
+#  19: construct.5:[CNode]19{[0]: ValueNode<DoSignaturePrimitive> S-Prim-make_slice, [1]: ValueNode<None> None, [2]: ValueNode<None> None, [3]: ValueNode<None> None}
+#  20: construct.5:[CNode]20{[0]: ValueNode<DoSignaturePrimitive> S-Prim-make_slice, [1]: ValueNode<None> None, [2]: ValueNode<None> None, [3]: ValueNode<None> None}
+#  21: construct.5:[CNode]21{[0]: ValueNode<DoSignaturePrimitive> S-Prim-make_slice, [1]: ValueNode<None> None, [2]: ValueNode<None> None, [3]: ValueNode<None> None}
+#  22: construct.5:[CNode]22{[0]: ValueNode<DoSignaturePrimitive> S-Prim-MakeTuple, [1]: [CNode]17, [2]: [CNode]18, [3]: [CNode]19, [4]: [CNode]20, [5]: [CNode]21}
+#  23: construct.5:[CNode]23{[0]: ValueNode<DoSignaturePrimitive> S-Prim-getitem, [1]: x, [2]: [CNode]22}
+#  24: construct.5:[CNode]24{[0]: ValueNode<DoSignaturePrimitive> S-Prim-negative, [1]: ValueNode<Int64Imm> 1}
+#  25: construct.5:[CNode]25{[0]: ValueNode<DoSignaturePrimitive> S-Prim-make_slice, [1]: [CNode]24, [2]: ValueNode<None> None, [3]: ValueNode<None> None}
+#  26: construct.5:[CNode]26{[0]: ValueNode<DoSignaturePrimitive> S-Prim-make_slice, [1]: ValueNode<None> None, [2]: ValueNode<None> None, [3]: ValueNode<None> None}
+#  27: construct.5:[CNode]27{[0]: ValueNode<DoSignaturePrimitive> S-Prim-make_slice, [1]: ValueNode<None> None, [2]: ValueNode<None> None, [3]: ValueNode<None> None}
+#  28: construct.5:[CNode]28{[0]: ValueNode<DoSignaturePrimitive> S-Prim-make_slice, [1]: ValueNode<None> None, [2]: ValueNode<None> None, [3]: ValueNode<None> None}
+#  29: construct.5:[CNode]29{[0]: ValueNode<DoSignaturePrimitive> S-Prim-make_slice, [1]: ValueNode<None> None, [2]: ValueNode<None> None, [3]: ValueNode<None> None}
+#  30: construct.5:[CNode]30{[0]: ValueNode<DoSignaturePrimitive> S-Prim-MakeTuple, [1]: [CNode]25, [2]: [CNode]26, [3]: [CNode]27, [4]: [CNode]28, [5]: [CNode]29}
+#  31: construct.5:[CNode]31{[0]: ValueNode<DoSignaturePrimitive> S-Prim-getitem, [1]: x, [2]: [CNode]30}
+#  32: construct.5:[CNode]32{[0]: ValueNode<DoSignaturePrimitive> S-Prim-MakeTuple, [1]: [CNode]23, [2]: [CNode]31}
+#  33: construct.5:[CNode]33{[0]: ValueNode<Primitive> Return, [1]: [CNode]32}
+
+
+#===============================================================================
+# num of function graphs in stack: 2/3 (Ignored 1 internal frames).

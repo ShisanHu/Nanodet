@@ -50,7 +50,7 @@ class GeneratDefaultGridCells:
 # nanodet list
 default_multi_level_grid_cells = GeneratDefaultGridCells().default_multi_level_grid_cells
 num_level_cells_list = [grid_cells.shape[0] for grid_cells in default_multi_level_grid_cells]
-mlvl_grid_cells = np.concatenate(default_multi_level_grid_cells, axis=0)
+mlvl_grid_cells = np.concatenate(default_multi_level_grid_cells, axis=0, dtype=np.float32)
 y1, x1, y2, x2 = np.split(mlvl_grid_cells[:, :4], 4, axis=-1)
 vol_anchors = (x2 - x1) * (y2 - y1)
 
@@ -73,7 +73,7 @@ def nanodet_bboxes_encode(boxes):
         INF = 100000
         num_gt = gt_bboxes.shape[0]
         num_grid_cells = mlvl_grid_cells.shape[0]
-        assigned_gt_inds = np.full(shape=(num_grid_cells, ), fill_value=0, dtype=np.int64)
+        assigned_gt_inds = np.full(shape=(num_grid_cells, ), fill_value=0, dtype=np.int32)
         gt_cx = (gt_bboxes[:, 0] + gt_bboxes[:, 2]) / 2.0
         gt_cy = (gt_bboxes[:, 1] + gt_bboxes[:, 3]) / 2.0
         gt_point = np.stack((gt_cx, gt_cy), axis=1)
@@ -128,7 +128,7 @@ def nanodet_bboxes_encode(boxes):
         assigned_gt_inds[max_overlaps != -INF] = argmax_overlaps[max_overlaps != -INF] + 1
 
         if gt_labels is not None:
-            assigned_labels = np.full_like(assigned_gt_inds, -1)
+            assigned_labels = np.full_like(assigned_gt_inds, -1, dtype=np.int32)
             pos_inds = np.nonzero(assigned_gt_inds > 0)[0].squeeze()
             if pos_inds.size > 0:
                 assigned_labels[pos_inds] = gt_labels[assigned_gt_inds[pos_inds] - 1]

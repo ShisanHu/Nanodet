@@ -3,6 +3,8 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/nanodet.iml" filepath="$PROJECT_DIR$/.idea/nanodet.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../nanodet-Finalii/.idea/nanodet-Final.iml" filepath="$PROJECT_DIR$/../nanodet-Finalii/.idea/nanodet-Final.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../models/official/cv/retinanet/.idea/retinanet.iml" filepath="$PROJECT_DIR$/../models/official/cv/retinanet/.idea/retinanet.iml" />
     </modules>
   </component>
 </project>

@@ -8,13 +8,11 @@ from mindspore.ops import functional as F
 from typing import Tuple
 import numpy as np
 from src.model_utils.config import config
-# from .module.conv import ConvModule
-# from .module.init_weights import normal_init, xavier_init
-# from .module.scale import Scale
 from mindspore.parallel._auto_parallel_context import auto_parallel_context
 from mindspore.communication.management import get_group_size
 from mindspore.context import ParallelMode
 import time
+
 
 def ClassificationModel(in_channel, kernel_size=3,
                         stride=1, pad_mod='same', num_classes=80, feature_size=256):
@@ -23,11 +21,51 @@ def ClassificationModel(in_channel, kernel_size=3,
     conv3 = nn.Conv2d(feature_size, num_classes, kernel_size=3, pad_mode='same')
     return nn.SequentialCell([conv1, nn.ReLU(), conv2, nn.ReLU(), conv3])
 
+
 def RegressionModel(in_channel, reg_max, kernel_size=3, stride=1, pad_mod='same', feature_size=256):
     conv1 = nn.Conv2d(in_channel, feature_size, kernel_size=3, pad_mode='same')
     conv2 = nn.Conv2d(feature_size, feature_size, kernel_size=3, pad_mode='same')
     conv3 = nn.Conv2d(feature_size, (reg_max + 1) * 4, kernel_size=3, pad_mode='same')
     return nn.SequentialCell([conv1, nn.ReLU(), conv2, nn.ReLU(), conv3])
+
+
+def ShuffleBlockMainBranch(in_channels, mid_channels, out_channels, k_size, stride):
+    conv1 = nn.Conv2d(in_channels=in_channels, out_channels=mid_channels, kernel_size=1, stride=1, pad_mode='same')
+    norm1 = nn.BatchNorm2d(num_features=mid_channels, momentum=0.9)
+    relu1 = nn.ReLU()
+    conv2 = nn.Conv2d(in_channels=mid_channels, out_channels=mid_channels, kernel_size=k_size, stride=stride,
+                      pad_mode='same', group=mid_channels)
+    norm2 = nn.BatchNorm2d(num_features=mid_channels, momentum=0.9)
+    conv3 = nn.Conv2d(in_channels=mid_channels, out_channels=out_channels, kernel_size=1, stride=1, pad_mode='same')
+    norm3 = nn.BatchNorm2d(num_features=out_channels, momentum=0.9)
+    relu2 = nn.ReLU()
+    return nn.SequentialCell([conv1, norm1, relu1, conv2, norm2, conv3, norm3, relu2])
+
+
+def ShuffleBlockSubBranch(in_channels, k_size, stride):
+    conv1 = nn.Conv2d(in_channels=in_channels, out_channels=in_channels, kernel_size=k_size, stride=stride,
+                      pad_mode='same', group=in_channels)
+    norm1 = nn.BatchNorm2d(num_features=in_channels, momentum=0.9)
+    conv2 = nn.Conv2d(in_channels=in_channels, out_channels=in_channels, kernel_size=1, stride=1, pad_mode='same')
+    norm2 = nn.BatchNorm2d(num_features=in_channels, momentum=0.9)
+    relu = nn.ReLU()
+    return nn.SequentialCell([conv1, norm1, conv2, norm2, relu])
+
+
+class ChannelShuffle(nn.Cell):
+    def __init__(self):
+        super(ChannelShuffle, self).__init__()
+        self.reshape = P.Reshape()
+        self.transpose = P.Transpose()
+        self.shape = P.Shape()
+
+    def construct(self, x):
+        batchsize, num_channels, height, width = self.shape(x)
+        x = self.reshape(x, (batchsize * num_channels // 2, 2, height * width,))
+        x = self.transpose(x, (1, 0, 2,))
+        x = self.reshape(x, (2, -1, num_channels // 2, height, width,))
+        return x[0:1, :, :, :, :], x[-1:, :, :, :, :]
+
 
 class MultiConcat(nn.Cell):
     def __init__(self):
@@ -40,17 +78,18 @@ class MultiConcat(nn.Cell):
         batch_size = F.shape(inputs[0])[0]
         channel_size = F.shape(inputs[0])[1]
         for x in inputs:
-            x = self.transpose(x,(0, 2, 3, 1))
-            output += (F.reshape(x,(batch_size, -1, channel_size)),)
+            x = self.transpose(x, (0, 2, 3, 1))
+            output += (F.reshape(x, (batch_size, -1, channel_size)),)
         ans = self.concat(output)
         return ans
+
 
 class Integral(nn.Cell):
     def __init__(self, config):
         super(Integral, self).__init__()
         self.reg_max = config.reg_max
         self.softmax = P.Softmax(axis=-1)
-        self.project = ms.numpy.linspace(0, self.reg_max, self.reg_max+1).expand_dims(0)
+        self.project = ms.numpy.linspace(0, self.reg_max, self.reg_max + 1).expand_dims(0)
         self.project_weight = ms.Parameter(self.project, "project", requires_grad=False)
         self.dense = nn.Dense(self.reg_max + 1, 1, weight_init=self.project_weight)
 
@@ -60,15 +99,16 @@ class Integral(nn.Cell):
         x = self.dense(x).reshape(*shape[:-1], 4)
         return x
 
+
 class IntegralII(nn.Cell):
     def __init__(self, config):
         super(IntegralII, self).__init__()
         self.reg_max = config.reg_max
         self.softmax = P.Softmax(axis=-1)
 
-        self.start = Tensor(0,mstype.float32)
+        self.start = Tensor(0, mstype.float32)
         self.stop = Tensor(config.reg_max)
-        self.linspace = Tensor([[0,1,2,3,4,5,6,7]], mstype.float32)
+        self.linspace = Tensor([[0, 1, 2, 3, 4, 5, 6, 7]], mstype.float32)
         self.dense = nn.Dense(self.reg_max + 1, 1, weight_init=self.linspace)
         self.reshape = P.Reshape()
 
@@ -77,6 +117,7 @@ class IntegralII(nn.Cell):
         x = self.softmax(x.reshape(*shape[:-1], 4, self.reg_max + 1))
         x = self.dense(x).reshape(*shape[:-1], 4)
         return x
+
 
 class Distance2bbox(nn.Cell):
     def __init__(self, max_shape=None):
@@ -91,6 +132,7 @@ class Distance2bbox(nn.Cell):
         y2 = points[..., 1] + distance[..., 3]
         return self.stack([x1, y1, x2, y2])
 
+
 class ShuffleV2Block(nn.Cell):
     def __init__(self, inp, oup, mid_channels, *, ksize, stride):
         super(ShuffleV2Block, self).__init__()
@@ -104,17 +146,17 @@ class ShuffleV2Block(nn.Cell):
         branch_main = [
             # pw
             nn.Conv2d(in_channels=inp, out_channels=mid_channels, kernel_size=1, stride=1,
-                      pad_mode='pad', padding=0, has_bias=False),
+                      pad_mode='same', padding=0, has_bias=False),
             nn.BatchNorm2d(num_features=mid_channels, momentum=0.9),
             nn.ReLU(),
             # dw
             nn.Conv2d(in_channels=mid_channels, out_channels=mid_channels, kernel_size=ksize, stride=stride,
-                      pad_mode='pad', padding=pad, group=mid_channels, has_bias=False),
+                      pad_mode='same', padding=0, group=mid_channels, has_bias=False),
 
             nn.BatchNorm2d(num_features=mid_channels, momentum=0.9),
             # pw-linear
             nn.Conv2d(in_channels=mid_channels, out_channels=outputs, kernel_size=1, stride=1,
-                      pad_mode='pad', padding=0, has_bias=False),
+                      pad_mode='same', padding=0, has_bias=False),
             nn.BatchNorm2d(num_features=outputs, momentum=0.9),
             nn.ReLU(),
         ]
@@ -124,11 +166,11 @@ class ShuffleV2Block(nn.Cell):
             branch_proj = [
                 # dw
                 nn.Conv2d(in_channels=inp, out_channels=inp, kernel_size=ksize, stride=stride,
-                          pad_mode='pad', padding=pad, group=inp, has_bias=False),
+                          pad_mode='same', padding=0, group=inp, has_bias=False),
                 nn.BatchNorm2d(num_features=inp, momentum=0.9),
                 # pw-linear
                 nn.Conv2d(in_channels=inp, out_channels=inp, kernel_size=1, stride=1,
-                          pad_mode='pad', padding=0, has_bias=False),
+                          pad_mode='same', padding=0, has_bias=False),
                 nn.BatchNorm2d(num_features=inp, momentum=0.9),
                 nn.ReLU(),
             ]
@@ -156,6 +198,35 @@ class ShuffleV2Block(nn.Cell):
         x = P.Reshape()(x, (2, -1, num_channels // 2, height, width,))
         return x[0:1, :, :, :, :], x[-1:, :, :, :, :]
 
+
+class ShuffleV2BlockII(nn.Cell):
+    def __init__(self, in_channels, mid_channels, out_channels, k_size, stride):
+        super(ShuffleV2BlockII, self).__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.mid_channels = mid_channels
+        self.k_size = k_size
+        self.channel_shuffle = ChannelShuffle()
+        self.stride = stride
+        self.squeeze = P.Squeeze(axis=0)
+        self.concat = P.Concat(axis=1)
+        outputs = out_channels - in_channels
+        self.main_branch = ShuffleBlockMainBranch(in_channels, mid_channels, outputs, k_size, stride)
+        if stride == 2:
+            self.sub_branch = ShuffleBlockSubBranch(in_channels, k_size, stride)
+
+    def construct(self, x):
+        if self.stride == 1:
+            x_sub, x_main = self.channel_shuffle(x)
+            x_sub = self.squeeze(x_sub)
+            x_main = self.squeeze(x_main)
+            return self.concat((x_sub, self.main_branch(x_main)))
+        if self.stride == 2:
+            x_sub = x
+            x_main = x
+            return self.concat((self.sub_branch(x_sub), self.main_branch(x_main)))
+        return None
+
 class MultiPred(nn.Cell):
     def __init__(self, config):
         super(MultiPred, self).__init__()
@@ -166,7 +237,7 @@ class MultiPred(nn.Cell):
         reg_layers = []
         for i, out_channel in enumerate(out_channels):
             cls_layers += [ClassificationModel(in_channel=out_channel)]
-            reg_layers += [RegressionModel(in_channel=out_channel,reg_max=self.reg_max)]
+            reg_layers += [RegressionModel(in_channel=out_channel, reg_max=self.reg_max)]
 
         self.multi_cls_layers = nn.CellList(cls_layers)
         self.multi_reg_layers = nn.CellList(reg_layers)
@@ -181,8 +252,9 @@ class MultiPred(nn.Cell):
             reg_outputs += (self.multi_reg_layers[idx](inputs[idx]),)
         return self.multi_concat(cls_outputs), self.multi_concat(reg_outputs)
 
+
 class ShuffleNetV2II(nn.Cell):
-    def __init__(self,model_size='1.0x'):
+    def __init__(self, model_size='1.0x'):
         super(ShuffleNetV2II, self).__init__()
         print('model size is ', model_size)
         self.stage_repeats = [4, 8, 4]
@@ -203,7 +275,7 @@ class ShuffleNetV2II(nn.Cell):
 
         self.first_conv = nn.SequentialCell([
             nn.Conv2d(in_channels=3, out_channels=input_channel, kernel_size=3, stride=2,
-                      pad_mode='pad', padding=1, has_bias=False),
+                      pad_mode='same', has_bias=False),
             nn.BatchNorm2d(num_features=input_channel, momentum=0.9),
             nn.ReLU(),
         ])
@@ -218,7 +290,7 @@ class ShuffleNetV2II(nn.Cell):
             # -> 4 8 4
             numrepeat = self.stage_repeats[idxstage]
             # -> 0 1 2  -> 116 232 464
-            output_channel = self.stage_out_channels[idxstage+2]
+            output_channel = self.stage_out_channels[idxstage + 2]
             # -> 4 8 4
             for i in range(numrepeat):
                 if i == 0:
@@ -244,6 +316,67 @@ class ShuffleNetV2II(nn.Cell):
 
         return outputs
 
+class ShuffleNetV2III(nn.Cell):
+    def __init__(self, block, model_size='1.0x'):
+        super(ShuffleNetV2III, self).__init__()
+        print('model size is ', model_size)
+        stage_repeats = [4, 8, 4]
+        if model_size == '0.5x':
+            stage_out_channels = [-1, 24, 48, 96, 192, 1024]
+        elif model_size == '1.0x':
+            stage_out_channels = [-1, 24, 116, 232, 464, 1024]
+        elif model_size == '1.5x':
+            stage_out_channels = [-1, 24, 176, 352, 704, 1024]
+        elif model_size == '2.0x':
+            stage_out_channels = [-1, 24, 244, 488, 976, 2048]
+        else:
+            raise NotImplementedError
+
+        input_channel = stage_out_channels[1]
+        self.conv1 = nn.SequentialCell([
+            nn.Conv2d(in_channels=3, out_channels=input_channel, kernel_size=3, stride=2, pad_mode='same'),
+            nn.BatchNorm2d(num_features=input_channel, momentum=0.9),
+            nn.ReLU(),
+        ])
+        self.pool1 = nn.MaxPool2d(kernel_size=3, stride=2, pad_mode='same')
+
+        self.stage2 = self._make_layer(block,
+                                       stage_repeats[0],
+                                       in_channel=input_channel,
+                                       out_channel=stage_out_channels[2],
+                                       stride=2)
+        self.stage3 = self._make_layer(block,
+                                       stage_repeats[1],
+                                       in_channel=stage_out_channels[2],
+                                       out_channel=stage_out_channels[3],
+                                       stride=2)
+        self.stage4 = self._make_layer(block,
+                                       stage_repeats[2],
+                                       in_channel=stage_out_channels[3],
+                                       out_channel=stage_out_channels[4],
+                                       stride=2)
+
+    def _make_layer(self, block, layer_num, in_channel, out_channel, stride):
+        layers = []
+        nanodet_block = ShuffleV2BlockII(in_channel, mid_channels=out_channel // 2, out_channels=out_channel, k_size=3, stride=stride)
+        layers.append(nanodet_block)
+        for _ in range(1, layer_num):
+            nanodet_block = ShuffleV2BlockII(out_channel // 2, mid_channels=out_channel // 2, out_channels=out_channel, k_size=3, stride=1)
+            layers.append(nanodet_block)
+        return nn.SequentialCell(layers)
+
+    def construct(self, x):
+        x = self.conv1(x)
+        C1 = self.pool1(x)
+
+        C2 = self.stage2(C1)
+        C3 = self.stage3(C2)
+        C4 = self.stage4(C3)
+        return C2, C3, C4
+
+def shuffleNet(model_size='1.0x'):
+    return ShuffleNetV2III(ShuffleV2BlockII, model_size=model_size)
+
 class NanoDetII(nn.Cell):
     def __init__(self, backbone, config, is_training=True):
         super(NanoDetII, self).__init__()
@@ -252,14 +385,14 @@ class NanoDetII(nn.Cell):
         # feature_size = [40,20,10]
         # 116, 232, 464
         # [40,20,10]
-        self.P4_1 = nn.Conv2d(464, 96, kernel_size=1,stride=1, pad_mode='same')
+        self.P4_1 = nn.Conv2d(464, 96, kernel_size=1, stride=1, pad_mode='same')
         self.P_upSample1 = P.ResizeNearestNeighbor((feature_size[1], feature_size[1]))
         self.P4_2 = nn.Conv2d(96, 96, kernel_size=3, stride=1, pad_mode='same')
 
         self.P3_1 = nn.Conv2d(232, 96, kernel_size=1, stride=1, pad_mode='same')
         self.P_upSample2 = P.ResizeNearestNeighbor((feature_size[0], feature_size[0]))
-        self.P_downSample1 = nn.Conv2d(96,96,kernel_size=3,stride=2,pad_mode='same')
-        self.P3_2 = nn.Conv2d(96,96, kernel_size=3, stride=1, pad_mode='same')
+        self.P_downSample1 = nn.Conv2d(96, 96, kernel_size=3, stride=2, pad_mode='same')
+        self.P3_2 = nn.Conv2d(96, 96, kernel_size=3, stride=1, pad_mode='same')
 
         self.P2_1 = nn.Conv2d(116, 96, kernel_size=1, stride=1, pad_mode='same')
         self.P_downSample2 = nn.Conv2d(96, 96, kernel_size=3, stride=2, pad_mode='same')
@@ -287,6 +420,7 @@ class NanoDetII(nn.Cell):
         pred_cls, pred_reg = self.multiPred(multi_feature)
         return pred_cls, pred_reg
 
+
 class QualityFocalLossII(nn.Cell):
     def __init__(self, beta=2.0, loss_weight=1.0):
         super(QualityFocalLossII, self).__init__()
@@ -306,24 +440,26 @@ class QualityFocalLossII(nn.Cell):
     # 此时要对是正样本的地方进行score的修改!
     # 进行修改标注的内容竟然是iou！！！
     # 是预测框和gt_bbox之间的iou！！！！
-    def construct(self, preds, targets: Tuple[Tensor]):
+    def construct(self, preds, targets: Tuple[Tensor], pos):
         label, score = targets
         pred_sigmoid = self.sigmoid(preds)
         scale_factor = pred_sigmoid
         zerolabel = self.zeros(preds.shape, ms.float32)
         loss = self.binary_cross_entropy_with_logits(preds, zerolabel) * self.pow(scale_factor, self.beta)
         bg_class_ind = preds.shape[1]
-        pos = np.nonzero(self.logicalAnd(label >= 0,label < bg_class_ind).asnumpy())
+        # pos = np.nonzero(self.logicalAnd(label >= 0, label < bg_class_ind).asnumpy())
         # pos = np.nonzero((label >= 0) & (label < bg_class_ind))[0].squeeze()
-        pos = Tensor(pos)
+        # pos = Tensor(pos)
+        # pos_logic = self.logicalAnd(label >= 0, label < bg_class_ind)
         pos_label = label[pos]
         scale_factor = score[pos] - pred_sigmoid[pos, pos_label]
         loss[pos, pos_label] = self.binary_cross_entropy_with_logits(
-                preds[pos, pos_label], score[pos]
+            preds[pos, pos_label], score[pos]
         ) * self.pow(scale_factor.abs(), self.beta)
         loss = loss.sum(axis=1, keepdims=False)
         loss = self.loss_weight * loss
         return loss
+
 
 class DistributionFocalLossII(nn.Cell):
     def __init__(self, loss_weight=1.0):
@@ -378,6 +514,7 @@ class GIouLossII(nn.Cell):
         gious_loss = self.loss_weight * gious_loss
         return gious_loss
 
+
 class Overlaps(nn.Cell):
     def __init__(self, eps=1e-6):
         super(Overlaps, self).__init__()
@@ -417,9 +554,10 @@ class NanoDetWithLossCell(nn.Cell):
         self.distance2bbox = Distance2bbox()
         self.reshape = P.Reshape()
         self.bbox_overlaps = Overlaps()
-        
+
     # def construct(self, x, gt_meta):
-    def construct(self, x, pos_inds:Tensor, pos_grid_cell_center:Tensor, pos_decode_bbox_targets:Tensor, target_corners:Tensor, assign_labels:Tensor):
+    def construct(self, x, pos_inds: Tensor, pos_grid_cell_center: Tensor, pos_decode_bbox_targets: Tensor,
+                  target_corners: Tensor, assign_labels: Tensor):
         cls_scores, bbox_preds = self.network(x)
         cls_scores = cls_scores.reshape(-1, config.num_classes)
         bbox_preds = bbox_preds.reshape(-1, 4 * (config.reg_max + 1))
@@ -433,7 +571,7 @@ class NanoDetWithLossCell(nn.Cell):
         pos_bbox_pred = bbox_preds[pos_inds]
         pos_bbox_pred_corners = self.integral(pos_bbox_pred)
         pos_decode_bbox_pred = self.distance2bbox(pos_grid_cell_center, pos_bbox_pred_corners)
-        pred_corners = self.reshape(pos_bbox_pred, (-1,config.reg_max + 1))
+        pred_corners = self.reshape(pos_bbox_pred, (-1, config.reg_max + 1))
         # pred_corners = pos_bbox_pred.reshape(-1)
         score = self.zerosLike(assign_labels)
         score[pos_inds] = self.bbox_overlaps(pos_decode_bbox_pred, pos_decode_bbox_targets)
@@ -441,9 +579,10 @@ class NanoDetWithLossCell(nn.Cell):
         target = (assign_labels, score)
         giou_loss = self.reduce_sum(self.giou_loss(pos_decode_bbox_pred, pos_decode_bbox_targets))
         dfs_loss = self.reduce_sum(self.dfs_loss(pred_corners, target_corners))
-        qfl_loss = self.reduce_sum(self.qfl_loss(cls_scores, target))
+        qfl_loss = self.reduce_sum(self.qfl_loss(cls_scores, target, pos_inds))
         loss = giou_loss + dfs_loss + qfl_loss
         return loss
+
 
 class TrainingWrapper(nn.Cell):
     def __init__(self, network, optimizer, sens=1.0):
@@ -482,14 +621,15 @@ class TrainingWrapper(nn.Cell):
         return loss
 
 if __name__ == "__main__":
+    backbone = shuffleNet()
     a = time.time()
     ms.set_context(mode=ms.PYNATIVE_MODE, device_target="CPU")
-    net = ShuffleNetV2II()
-    x = Tensor(np.random.randint(0,255,(1,3,320,320)),mstype.float32)
-
-    nanodet = NanoDetII(net, config)
+    # net = ShuffleNetV2II()
+    x = Tensor(np.random.randint(0, 255, (16, 3, 320, 320)), mstype.float32)
+    # outs = backbone(x)
+    nanodet = NanoDetII(backbone, config)
     out = nanodet(x)
-    net = NanoDetWithLossCell(nanodet,config)
+    net = NanoDetWithLossCell(nanodet, config)
 
     class GeneratDefaultGridCells:
         def __init__(self):
@@ -718,16 +858,12 @@ if __name__ == "__main__":
         union = area_a + area_b - inter
         return inter / union
 
+
     boxes = np.array([[20, 20, 40, 30, 0], [10, 10, 50, 20, 1]])
-    pos_inds, pos_grid_cell_center, pos_decode_bbox_targets, target_corners, assign_labels = nanodet_bboxes_encode(boxes)
+    pos_inds, pos_grid_cell_center, pos_decode_bbox_targets, target_corners, assign_labels = nanodet_bboxes_encode(
+        boxes)
     # x, pos_inds: Tensor, pos_grid_cell_center: Tensor, pos_decode_bbox_targets: Tensor, target_corners: Tensor, assign_labels: Tensor
-    loss = net(x,Tensor(pos_inds[None]),Tensor(pos_grid_cell_center[None]),Tensor(pos_decode_bbox_targets[None]),Tensor(target_corners[None]),Tensor(assign_labels[None]))
+    loss = net(x, Tensor(pos_inds[None]), Tensor(pos_grid_cell_center[None]), Tensor(pos_decode_bbox_targets[None]),
+               Tensor(target_corners[None]), Tensor(assign_labels[None]))
     b = time.time()
-    print("时间耗时%ds"%(b-a))
-
-
-
-
-
-
-
+    print("时间耗时%ds" % (b - a))

@@ -4,5 +4,12 @@
     <content url="file://$MODULE_DIR$" />
     <orderEntry type="jdk" jdkName="Python 3.7 (mindspore)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="module" module-name="retinanet" />
+    <orderEntry type="module" module-name="nanodet-Final" />
+  </component>
+  <component name="PackageRequirementsSettings">
+    <option name="requirementsPath" value="D:\VSCoding\Nanodet\requirements.txt" />
+    <option name="versionSpecifier" value="Don't specify version" />
+    <option name="removeUnused" value="true" />
   </component>
 </module>
