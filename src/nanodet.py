@@ -118,7 +118,6 @@ class IntegralII(nn.Cell):
         x = self.dense(x).reshape(*shape[:-1], 4)
         return x
 
-
 class Distance2bbox(nn.Cell):
     def __init__(self, max_shape=None):
         super(Distance2bbox, self).__init__()
@@ -382,9 +381,6 @@ class NanoDetII(nn.Cell):
         super(NanoDetII, self).__init__()
         self.backbone = backbone
         feature_size = config.feature_size
-        # feature_size = [40,20,10]
-        # 116, 232, 464
-        # [40,20,10]
         self.P4_1 = nn.Conv2d(464, 96, kernel_size=1, stride=1, pad_mode='same')
         self.P_upSample1 = P.ResizeNearestNeighbor((feature_size[1], feature_size[1]))
         self.P4_2 = nn.Conv2d(96, 96, kernel_size=3, stride=1, pad_mode='same')
@@ -460,18 +456,47 @@ class QualityFocalLossII(nn.Cell):
         loss = self.loss_weight * loss
         return loss
 
+class QualityFocalLossIII(nn.Cell):
+    def __init__(self, beta=2.0, loss_weight=1.0):
+        super(QualityFocalLossIII, self).__init__()
+        self.beta = beta
+        self.loss_weight = loss_weight
+        self.sigmoid = P.Sigmoid()
+        self.pow = P.Pow()
+        self.zeros = P.Zeros()
+        self.logicalAnd = P.LogicalAnd()
+        self.binary_cross_entropy_with_logits = nn.BCEWithLogitsLoss(reduction='none')
+        self.nonzero = P.MaskedSelect()
+        self.reshape = P.Reshape()
+        self.reduce_sum = P.ReduceSum()
+
+    def construct(self, pred:ms.Tensor, label, score, pos):
+        # label, score = target
+        pred_sigmoid = self.sigmoid(pred)
+        scale_factor = pred_sigmoid
+        zerolabel = self.zeros(pred.shape, ms.float32)
+        loss = self.binary_cross_entropy_with_logits(pred, zerolabel) * self.pow(scale_factor, self.beta)
+        pos_label = label[pos]
+        scale_factor = score[pos] - pred_sigmoid[pos, pos_label]
+        loss[pos, pos_label] = self.binary_cross_entropy_with_logits(pred[pos, pos_label], score[pos]) * self.pow(scale_factor.abs(), self.beta)
+        loss = self.reduce_sum(loss, axis=1)
+        loss = loss * self.loss_weight
+        loss = loss / len(pos)
+        return loss
+
 
 class DistributionFocalLossII(nn.Cell):
-    def __init__(self, loss_weight=1.0):
+    def __init__(self, loss_weight=0.25):
         super(DistributionFocalLossII, self).__init__()
         self.loss_weight = loss_weight
         self.cross_entropy = nn.SoftmaxCrossEntropyWithLogits(sparse=True, reduction='none')
         self.cast = P.Cast()
+        self.reduce_sum = P.ReduceSum()
 
     # pred = pred_corners是正样本点上对应的pred_reg [正样本数量*4, self.reg_max + 1]
     # target = target_corners是正样本cells中心点和gt_bbox的中心点距离[l,t,r,b] [正样本数量, 4]
-    def construct(self, pred, label):
-        dis_left = self.cast(label, ms.int64)
+    def construct(self, pred, label, pos):
+        dis_left = self.cast(label, ms.int32)
         dis_right = dis_left + 1
         weight_left = self.cast(dis_right, ms.float32) - label
         weight_right = label - self.cast(dis_left, ms.float32)
@@ -479,10 +504,16 @@ class DistributionFocalLossII(nn.Cell):
                 self.cross_entropy(pred, dis_left) * weight_left
                 + self.cross_entropy(pred, dis_right) * weight_right)
         dfl_loss = dfl_loss * self.loss_weight
+        dfl_loss = dfl_loss / len(pos)
         return dfl_loss
 
+# class DistributionFocalLossIII(nn.Cell):
+#     def __init__(self, loss_weight=0.25):
+#         super(DistributionFocalLossIII, self).__init__()
+#         self.cross_entropy = nn.
+
 class GIouLossII(nn.Cell):
-    def __init__(self, eps=1e-6, reduction='mena', loss_weight=1.0):
+    def __init__(self, eps=1e-6, reduction='mena', loss_weight=2.0):
         super(GIouLossII, self).__init__()
         self.reduction = reduction
         self.loss_weight = loss_weight
@@ -547,10 +578,11 @@ class NanoDetWithLossCell(nn.Cell):
         self.tile = P.Tile()
         self.expand_dims = P.ExpandDims()
         self.giou_loss = GIouLossII()
-        self.qfl_loss = QualityFocalLossII()
+        self.qfl_loss = QualityFocalLossIII()
         self.dfs_loss = DistributionFocalLossII()
         self.integral = IntegralII(config)
-        self.zerosLike = P.ZerosLike()
+        # self.zerosLike = P.ZerosLike()
+        self.zeros = P.Zeros()
         self.distance2bbox = Distance2bbox()
         self.reshape = P.Reshape()
         self.bbox_overlaps = Overlaps()
@@ -562,6 +594,7 @@ class NanoDetWithLossCell(nn.Cell):
         cls_scores = cls_scores.reshape(-1, config.num_classes)
         bbox_preds = bbox_preds.reshape(-1, 4 * (config.reg_max + 1))
 
+        pos_size = pos_inds.size
         pos_inds = pos_inds.squeeze()
         pos_grid_cell_center = pos_grid_cell_center.squeeze()
         pos_decode_bbox_targets = pos_decode_bbox_targets.squeeze()
@@ -573,13 +606,16 @@ class NanoDetWithLossCell(nn.Cell):
         pos_decode_bbox_pred = self.distance2bbox(pos_grid_cell_center, pos_bbox_pred_corners)
         pred_corners = self.reshape(pos_bbox_pred, (-1, config.reg_max + 1))
         # pred_corners = pos_bbox_pred.reshape(-1)
-        score = self.zerosLike(assign_labels)
+        # int64这里出现
+        score = self.zeros(assign_labels.shape, ms.float32)
+        temp = self.bbox_overlaps(pos_decode_bbox_pred, pos_decode_bbox_targets)
         score[pos_inds] = self.bbox_overlaps(pos_decode_bbox_pred, pos_decode_bbox_targets)
         # score[None][:, pos_inds] = self.bbox_overlaps(pos_decode_bbox_pred, pos_decode_bbox_targets)
         target = (assign_labels, score)
-        giou_loss = self.reduce_sum(self.giou_loss(pos_decode_bbox_pred, pos_decode_bbox_targets))
-        dfs_loss = self.reduce_sum(self.dfs_loss(pred_corners, target_corners))
-        qfl_loss = self.reduce_sum(self.qfl_loss(cls_scores, target, pos_inds))
+        giou_loss = self.reduce_sum(self.giou_loss(pos_decode_bbox_pred, pos_decode_bbox_targets)) // pos_size * 0.3
+        dfs_loss = self.reduce_sum(self.dfs_loss(pred_corners, target_corners, pos_inds))
+        # qfl_loss = self.reduce_sum(self.qfl_loss(cls_scores, target, pos_inds)) // pos_size * 0.2
+        qfl_loss = self.reduce_sum(self.qfl_loss(cls_scores, assign_labels, score, pos_inds))
         loss = giou_loss + dfs_loss + qfl_loss
         return loss
 
@@ -624,9 +660,11 @@ if __name__ == "__main__":
     backbone = shuffleNet()
     a = time.time()
     ms.set_context(mode=ms.PYNATIVE_MODE, device_target="CPU")
-    # net = ShuffleNetV2II()
-    x = Tensor(np.random.randint(0, 255, (16, 3, 320, 320)), mstype.float32)
+    backboneII = ShuffleNetV2II()
+    x = Tensor(np.random.randint(0, 255, (1, 3, 320, 320)), mstype.float32)
     # outs = backbone(x)
+    # outs_III = backbone(x)
+    # outs_II = backboneII(x)
     nanodet = NanoDetII(backbone, config)
     out = nanodet(x)
     net = NanoDetWithLossCell(nanodet, config)
@@ -635,16 +673,24 @@ if __name__ == "__main__":
         def __init__(self):
             feature_size = [[40, 40], [20, 20], [10, 10]]
             steps = [8, 16, 32]
+            anchor_size = np.array([8,16,32], np.float32)
             feature_size = np.array(feature_size)
             strides = np.array(steps)
             self.default_multi_level_grid_cells = []
             # config.feature_size = [[40, 40], [20, 20], [10, 10]]
             for idex, feature_size in enumerate(feature_size):
+                base_size = anchor_size[idex] / 320
                 stride = strides[idex]
                 h, w = feature_size
                 x_range = (np.arange(w) + 0.5) * stride
                 y_range = (np.arange(h) + 0.5) * stride
+                # x_range = np.arange(feature_size[0])
+                # y_range = np.arange(feature_size[1])
                 y_feat, x_feat = np.meshgrid(x_range, y_range)
+
+                # y_feat = (y_feat + 0.5) / h
+                # x_feat = (x_feat + 0.5) / h
+
                 y_feat, x_feat = y_feat.flatten(), x_feat.flatten()
                 grid_cells = np.stack(
                     [
@@ -655,13 +701,23 @@ if __name__ == "__main__":
                     ],
                     axis=-1
                 )
+                # grid_cells = np.stack(
+                #     [
+                #         x_feat - base_size / 2,
+                #         y_feat - base_size / 2,
+                #         x_feat + base_size / 2,
+                #         y_feat + base_size / 2
+                #     ],
+                #     axis=-1
+                # )
+
                 self.default_multi_level_grid_cells.append(grid_cells)
 
 
     # nanodet list
     default_multi_level_grid_cells = GeneratDefaultGridCells().default_multi_level_grid_cells
     num_level_cells_list = [grid_cells.shape[0] for grid_cells in default_multi_level_grid_cells]
-    mlvl_grid_cells = np.concatenate(default_multi_level_grid_cells, axis=0)
+    mlvl_grid_cells = np.concatenate(default_multi_level_grid_cells, axis=0, dtype=np.float32)
     y1, x1, y2, x2 = np.split(mlvl_grid_cells[:, :4], 4, axis=-1)
     vol_anchors = (x2 - x1) * (y2 - y1)
 
@@ -686,7 +742,7 @@ if __name__ == "__main__":
             INF = 100000
             num_gt = gt_bboxes.shape[0]
             num_grid_cells = mlvl_grid_cells.shape[0]
-            assigned_gt_inds = np.full(shape=(num_grid_cells,), fill_value=0, dtype=np.int64)
+            assigned_gt_inds = np.full(shape=(num_grid_cells,), fill_value=0, dtype=np.int32)
             gt_cx = (gt_bboxes[:, 0] + gt_bboxes[:, 2]) / 2.0
             gt_cy = (gt_bboxes[:, 1] + gt_bboxes[:, 3]) / 2.0
             gt_point = np.stack((gt_cx, gt_cy), axis=1)
@@ -730,8 +786,8 @@ if __name__ == "__main__":
             t_ = ep_bboxes_cy[candidate_idxs].reshape(-1, num_gt) - gt_bboxes[:, 1]
             r_ = gt_bboxes[:, 2] - ep_bboxes_cx[candidate_idxs].reshape(-1, num_gt)
             b_ = gt_bboxes[:, 3] - ep_bboxes_cy[candidate_idxs].reshape(-1, num_gt)
-            is_in_gts = np.stack([l_, t_, r_, b_], axis=1).min(axis=1) > 0.01
-            is_pos = is_pos & is_in_gts
+            # is_in_gts = np.stack([l_, t_, r_, b_], axis=1).min(axis=1) > 0.01
+            # is_pos = is_pos & is_in_gts
 
             overlaps_inf = np.full_like(overlaps, -INF).T.reshape(-1)
             index = candidate_idxs.reshape(-1)[is_pos.reshape(-1)]
@@ -744,7 +800,7 @@ if __name__ == "__main__":
             assigned_gt_inds[max_overlaps != -INF] = argmax_overlaps[max_overlaps != -INF] + 1
 
             if gt_labels is not None:
-                assigned_labels = np.full_like(assigned_gt_inds, -1)
+                assigned_labels = np.full_like(assigned_gt_inds, -1, dtype=np.int32)
                 pos_inds = np.nonzero(assigned_gt_inds > 0)[0].squeeze()
                 if pos_inds.size > 0:
                     assigned_labels[pos_inds] = gt_labels[assigned_gt_inds[pos_inds] - 1]
@@ -765,9 +821,9 @@ if __name__ == "__main__":
         def target_assign_single_img(pos_inds, neg_inds, pos_gt_bboxes, pos_assigned_gt_inds, gt_labels):
             num_grid_cells = mlvl_grid_cells.shape[0]
 
-            bbox_targets = np.zeros_like(mlvl_grid_cells)
-            bbox_weights = np.zeros_like(mlvl_grid_cells)
-            assign_labels = np.full((num_grid_cells,), 80, dtype=np.int64)
+            bbox_targets = np.zeros_like(mlvl_grid_cells, np.float32)
+            bbox_weights = np.zeros_like(mlvl_grid_cells, np.float32)
+            assign_labels = np.full((num_grid_cells,), 80, dtype=np.int32)
             assign_labels_weights = np.zeros((num_grid_cells,), dtype=np.float32)
 
             if len(pos_inds) > 0:
@@ -859,7 +915,10 @@ if __name__ == "__main__":
         return inter / union
 
 
-    boxes = np.array([[20, 20, 40, 30, 0], [10, 10, 50, 20, 1]])
+    boxes = np.array([[50, 70, 200, 200, 32], [40, 90, 170, 100, 1]], np.float32)
+    # boxes[:, [0, 2]] = boxes[:, [0, 2]] / 320
+    # boxes[:, [1, 3]] = boxes[:, [1, 3]] / 320
+    # boxes = np.array([[50, 70, 200, 200, 32], [40, 90, 170, 100, 1]])
     pos_inds, pos_grid_cell_center, pos_decode_bbox_targets, target_corners, assign_labels = nanodet_bboxes_encode(
         boxes)
     # x, pos_inds: Tensor, pos_grid_cell_center: Tensor, pos_decode_bbox_targets: Tensor, target_corners: Tensor, assign_labels: Tensor

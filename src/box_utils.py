@@ -24,11 +24,21 @@ class GeneratDefaultGridCells:
     def __init__(self):
         # feature_size = [[40,40],[20,20], [10,10]]
         # steps = [8, 16, 32]
+        fk = config.img_shape[0] / np.array(config.strides)
         feature_size = np.array(config.feature_size)
+        scales = np.array([1.0])
         strides = np.array(config.strides)
+        anchor_size = np.array(config.anchor_size)
         self.default_multi_level_grid_cells = []
-        # config.feature_size = [[40, 40], [20, 20], [10, 10]]
-        for idex, feature_size in enumerate(feature_size):
+        # config.feature_size = [40, 20, 10]
+        for idex, feature_size in enumerate(config.feature_size):
+            base_size = anchor_size[idex] / config.img_shape[0]
+            size = base_size * scales
+            all_size = []
+            for aspect_ratio in config.aspect_ratios:
+                w, h = size * math.sqrt(aspect_ratio), size / math.sqrt(aspect_ratio)
+                all_size.append((h, w))
+
             stride = strides[idex]
             h = feature_size
             w = feature_size
@@ -47,12 +57,64 @@ class GeneratDefaultGridCells:
             )
             self.default_multi_level_grid_cells.append(grid_cells)
 
+class GeneratDefaultGridCellsII:
+    def __init__(self):
+        fk = config.img_shape[0] / np.array(config.strides)
+        scales = np.array([1.0])
+        strides = np.array(config.strides)
+        anchor_size = np.array(config.anchor_size)
+        self.default_multi_level_grid_cells = []
+        # config.feature_size = [40, 20, 10]
+        for idex, feature_size in enumerate(config.feature_size):
+            base_size = anchor_size[idex] / config.img_shape[0]
+            size = base_size * scales[0]
+            all_sizes = []
+            w, h = size * math.sqrt(config.aspect_ratio), size / math.sqrt(config.aspect_ratio)
+            all_sizes.append((h, w))
+            for i, j in it.product(range(feature_size), repeat=2):
+                for h, w in all_sizes:
+                    cx, cy = (j + 0.5) / fk[idex], (i + 0.5) / fk[idex]
+                    self.default_multi_level_grid_cells.append([cx,cy,h,w])
+        def to_ltrb(cy, cx, h, w):
+            return cy - h / 2, cx - w / 2, cy + h / 2, cx + w / 2
+
+        self.default_multi_level_grid_cells_ltrb = np.array(tuple(to_ltrb(*i) for i in self.default_multi_level_grid_cells), dtype='float32')
+        self.default_multi_level_grid_cells = np.array(self.default_multi_level_grid_cells, dtype='float32')
+
+
+# default_multi_level_grid_cells_ltrb = GeneratDefaultGridCellsII().default_multi_level_grid_cells_ltrb
+# default_multi_level_grid_cells = GeneratDefaultGridCellsII().default_multi_level_grid_cells
+# y1, x1, y2, x2 = np.split(default_multi_level_grid_cells_ltrb[:, :4], 4, axis=-1)
+# The area of Anchor
+# vol_anchors = (x2 - x1) * (y2 - y1)
+
 # nanodet list
 default_multi_level_grid_cells = GeneratDefaultGridCells().default_multi_level_grid_cells
 num_level_cells_list = [grid_cells.shape[0] for grid_cells in default_multi_level_grid_cells]
 mlvl_grid_cells = np.concatenate(default_multi_level_grid_cells, axis=0, dtype=np.float32)
 y1, x1, y2, x2 = np.split(mlvl_grid_cells[:, :4], 4, axis=-1)
 vol_anchors = (x2 - x1) * (y2 - y1)
+
+def nanodet_bboxes_encodeII(boxes):
+    def jaccard_with_anchors(bbox):
+        ymin = np.maximum(y1, bbox[0])
+        xmin = np.maximum(x1, bbox[1])
+        ymax = np.minimum(y2, bbox[2])
+        xmax = np.minimum(x2, bbox[3])
+        w = np.maximum(xmax - xmin, 0.)
+        h = np.maximum(ymax - ymin, 0.)
+        inter_vol = h * w
+        union_vol = vol_anchors + (bbox[2] - bbox[0]) * (bbox[3] - bbox[1]) - inter_vol
+        jaccard = inter_vol / union_vol
+        return np.squeeze(jaccard)
+
+
+    for bbox in boxes:
+        label = int(bbox[4])
+        scores = jaccard_with_anchors(bbox)
+
+
+
 
 def nanodet_bboxes_encode(boxes):
     def bbox_overlaps(bbox):
@@ -74,6 +136,7 @@ def nanodet_bboxes_encode(boxes):
         num_gt = gt_bboxes.shape[0]
         num_grid_cells = mlvl_grid_cells.shape[0]
         assigned_gt_inds = np.full(shape=(num_grid_cells, ), fill_value=0, dtype=np.int32)
+
         gt_cx = (gt_bboxes[:, 0] + gt_bboxes[:, 2]) / 2.0
         gt_cy = (gt_bboxes[:, 1] + gt_bboxes[:, 3]) / 2.0
         gt_point = np.stack((gt_cx, gt_cy), axis=1)
@@ -100,12 +163,16 @@ def nanodet_bboxes_encode(boxes):
             start_idx = end_idx
         candidate_idxs = np.concatenate(candidate_idxs, axis=0)
         candidate_overlaps = overlaps[candidate_idxs, np.arange(num_gt)]
+
         overlaps_mean_per_gt = np.mean(candidate_overlaps, axis=0)
         overlaps_std_per_gt = np.std(candidate_overlaps, axis=0)
+
         overlaps_thr_per_gt = overlaps_mean_per_gt + overlaps_std_per_gt
         is_pos = candidate_overlaps >= overlaps_thr_per_gt[None, :]
+
         for gt_idx in range(num_gt):
             candidate_idxs[:, gt_idx] += gt_idx * num_grid_cells
+
         ep_bboxes_cx = np.reshape(grid_cells_cx, (1, -1)).repeat(num_gt, axis=0).reshape(-1)
         ep_bboxes_cy = np.reshape(grid_cells_cy, (1, -1)).repeat(num_gt, axis=0).reshape(-1)
         candidate_idxs = candidate_idxs.reshape(-1)
@@ -114,7 +181,8 @@ def nanodet_bboxes_encode(boxes):
         t_ = ep_bboxes_cy[candidate_idxs].reshape(-1, num_gt) - gt_bboxes[:, 1]
         r_ = gt_bboxes[:, 2] - ep_bboxes_cx[candidate_idxs].reshape(-1, num_gt)
         b_ = gt_bboxes[:, 3] - ep_bboxes_cy[candidate_idxs].reshape(-1, num_gt)
-        is_in_gts = np.stack([l_, t_, r_, b_], axis=1).min(axis=1) > 0.01
+        is_in_gts = np.stack([l_, t_, r_, b_], axis=1)
+        is_in_gts = np.min(is_in_gts,axis=1) > 0.01
         is_pos = is_pos & is_in_gts
 
         overlaps_inf = np.full_like(overlaps, -INF).T.reshape(-1)
@@ -141,6 +209,7 @@ def nanodet_bboxes_encode(boxes):
         pos_inds = np.nonzero(assigned_gt_inds > 0)[0].squeeze()
         neg_inds = np.nonzero(assigned_gt_inds == 0)[0].squeeze()
         pos_assigned_gt_inds = assigned_gt_inds[pos_inds] - 1
+
         if len(gt_bboxes.shape) < 2:
             gt_bboxes = gt_bboxes.reshape(-1, 4)
         pos_gt_bboxes = gt_bboxes[pos_assigned_gt_inds, :]
@@ -196,12 +265,12 @@ def nanodet_bboxes_encode(boxes):
         gt_bboxes.append(bbox[:4])
         overlap = bbox_overlaps(bbox)
         overlaps.append(overlap)
+
     overlaps = np.stack(overlaps, axis=-1)
     gt_labels = np.array(gt_labels)
     gt_bboxes = np.stack(gt_bboxes, 0)
 
     num_gt, assigned_gt_inds, max_overlaps, assigned_labels = atssAssign(gt_bboxes, gt_labels, overlaps)
-
     pos_inds, neg_inds, pos_gt_bboxes, pos_assigned_gt_inds = sample(assigned_gt_inds, gt_bboxes)
     assign_labels, assign_labels_weights, bbox_targets, bbox_weights, pos_inds, neg_inds = \
         target_assign_single_img(pos_inds, neg_inds, pos_gt_bboxes, pos_assigned_gt_inds, gt_labels)

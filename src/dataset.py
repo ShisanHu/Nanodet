@@ -97,12 +97,9 @@ def random_sample_crop(image, boxes):
         boxes_t[:, 2:4] -= rect[:2]
 
         return image_t, boxes_t
-
     return image, boxes
 
 
-# =============================================================================================================
-# 需要施工的函数
 def preprocess_fn(img_id, image, box, is_training):
     """Preprocess function for dataset."""
     cv2.setNumThreads(2)
@@ -133,30 +130,31 @@ def preprocess_fn(img_id, image, box, is_training):
 
         # 可直接使用
         # Random crop
+        # image 原图片, box gt_box
         box = box.astype(np.float32)
-        # check!
-        # image, box = random_sample_crop(image, box)
-
+        image, box = random_sample_crop(image, box)
         ih, iw, _ = image.shape
 
         # Resize image
         image = cv2.resize(image, (w, h))
 
         # Flip image or not
-        # flip = _rand() < .5
-        # if flip:
-        #     image = cv2.flip(image, 1, dst=None)
+        flip = _rand() < .5
+        if flip:
+            image = cv2.flip(image, 1, dst=None)
 
         # When the channels of image is 1
         if len(image.shape) == 2:
             image = np.expand_dims(image, axis=-1)
             image = np.concatenate([image, image, image], axis=-1)
 
-        # box[:, [0, 2]] = box[:, [0, 2]] / ih
-        # box[:, [1, 3]] = box[:, [1, 3]] / iw
+        # 对box进行 / image的大小
+        # 归一化操作
+        box[:, [0, 2]] = box[:, [0, 2]] / ih
+        box[:, [1, 3]] = box[:, [1, 3]] / iw
 
-        # if flip:
-        #     box[:, [1, 3]] = 1 - box[:, [3, 1]]
+        if flip:
+            box[:, [1, 3]] = 1 - box[:, [3, 1]]
 
         # retinanet_bboxes_encode: 返回bboxes(正样本的Anchor 格式:中心点宽高), 正样本类别, 正样本数量
         # 注意!!!! 关键之处在这里!!!!!
@@ -272,6 +270,9 @@ def create_coco_label(is_training):
         data_type = config.train_data_type
 
     # Classes need to train or test.
+    # background == 80
+    # 在retinanet中 背景样本类别是0
+    # 手动调整config,指定背景样本为80
     train_cls = config.coco_classes
     train_cls_dict = {}
     for i, cls in enumerate(train_cls):
@@ -305,7 +306,8 @@ def create_coco_label(is_training):
             if class_name in train_cls:
                 x_min, x_max = bbox[0], bbox[0] + bbox[2]
                 y_min, y_max = bbox[1], bbox[1] + bbox[3]
-                annos.append(list(map(round, [y_min, x_min, y_max, x_max])) + [train_cls_dict[class_name]-1])
+                #  xywh to xyxy
+                annos.append(list(map(round, [y_min, x_min, y_max, x_max])) + [train_cls_dict[class_name]])
 
         if not is_training and iscrowd:
             continue
@@ -441,6 +443,7 @@ def create_nanodet_dataset(mindrecord_file, batch_size, repeat_num, device_num=1
     # trans = [color_adjust_op, normalize_op, change_swap_op]
     ds = ds.map(operations=trans, input_columns=["image"], python_multiprocessing=is_training,
                 num_parallel_workers=num_parallel_workers)
+
     # 划分batch
     ds = ds.batch(batch_size, drop_remainder=True)
     # 返回dataset
