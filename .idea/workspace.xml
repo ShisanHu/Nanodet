@@ -4,9 +4,6 @@
     <list default="true" id="e2c92681-dcc6-4d51-97b9-fae8ff244f6e" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/config/nanodet-default.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/config/nanodet-default.yaml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/box_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/box_utils.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/nanodet.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/nanodet.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/train.py" beforeDir="false" afterPath="$PROJECT_DIR$/train.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -155,7 +152,7 @@
       <workItem from="1667092538288" duration="2310000" />
       <workItem from="1667180454993" duration="40285000" />
       <workItem from="1667303313394" duration="18245000" />
-      <workItem from="1667382261260" duration="6439000" />
+      <workItem from="1667382261260" duration="6689000" />
     </task>
     <servers />
   </component>
