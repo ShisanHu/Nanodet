@@ -29,7 +29,7 @@ from mindspore.common import set_seed
 # from src.retinanet import retinanetWithLossCell, TrainingWrapper, retinanet50, resnet50
 # from src.dataset import create_retinanet_dataset
 
-from src.nanodet import NanoDetWithLossCell, TrainingWrapper, ShuffleNetV2II, NanoDetII
+from src.nanodet import NanoDetWithLossCell, TrainingWrapper, ShuffleNetV2II, NanoDetII, shuffleNet
 from src.dataset import create_nanodet_dataset
 
 from src.lr_schedule import get_lr
@@ -131,7 +131,8 @@ def main():
     config.lr_end_rate = ast.literal_eval(config.lr_end_rate)
 
     if config.device_target == "Ascend":
-        context.set_context(mode=context.GRAPH_MODE, device_target="Ascend")
+        # context.set_context(mode=context.PYNATIVE_MODE, device_target="Ascend",pynative_synchronize=True)
+        context.set_context(mode=context.GRAPH_MODE, device_target="Ascend", pynative_synchronize=True)
         if config.distribute:
             if os.getenv("DEVICE_ID", "not_set").isdigit():
                 context.set_context(device_id=get_device_id())
@@ -181,7 +182,10 @@ def main():
     dataset_size = dataset.get_dataset_size()
     print("Create dataset done!")
 
-    backbone = ShuffleNetV2II()
+    # backbone = ShuffleNetV2II()
+    # nanodet = NanoDetII(backbone, config)
+    # net = NanoDetWithLossCell(nanodet, config)
+    backbone = shuffleNet()
     nanodet = NanoDetII(backbone, config)
     net = NanoDetWithLossCell(nanodet, config)
 
@@ -224,10 +228,12 @@ def main():
     if config.distribute:
         if rank == 0:
             cb += [ckpt_cb]
-        model.train(config.epoch_size, dataset, callbacks=cb, dataset_sink_mode=True)
+        # model.train(config.epoch_size, dataset, callbacks=cb, dataset_sink_mode=True)
+        model.train(config.epoch_size, dataset, callbacks=cb, dataset_sink_mode=False)
     else:
         cb += [ckpt_cb]
-        model.train(config.epoch_size, dataset, callbacks=cb, dataset_sink_mode=True)
+        # model.train(config.epoch_size, dataset, callbacks=cb, dataset_sink_mode=True)
+        model.train(config.epoch_size, dataset, callbacks=cb, dataset_sink_mode=False)
 
 if __name__ == '__main__':
     main()
@@ -242,4 +248,4 @@ if __name__ == '__main__':
     #     # print(item["pos_inds"])
     #     print("idx",idx)
     #     idx = idx + 1
-    pass
+    # pass

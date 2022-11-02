@@ -48,6 +48,9 @@ weight_decay: 1.5e-4
 extras_out_channels: [96, 96 ,96]
 feature_size: [40, 20, 10]
 strides: [8, 16, 32]
+anchor_size: [8, 16, 32]
+scales: [1.0, 1.0, 1.0]
+aspect_ratio: 1.0
 gamma: 2.0
 alpha: 0.75
 num_classes: 80

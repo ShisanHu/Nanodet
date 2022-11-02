@@ -97,6 +97,7 @@ def random_sample_crop(image, boxes):
         boxes_t[:, 2:4] -= rect[:2]
 
         return image_t, boxes_t
+
     return image, boxes
 
 
@@ -134,7 +135,6 @@ def preprocess_fn(img_id, image, box, is_training):
         box = box.astype(np.float32)
         image, box = random_sample_crop(image, box)
         ih, iw, _ = image.shape
-
         # Resize image
         image = cv2.resize(image, (w, h))
 
@@ -422,7 +422,7 @@ def create_nanodet_dataset(mindrecord_file, batch_size, repeat_num, device_num=1
     # "annotation": {"type": "int32", "shape": [-1, 5]
     compose_map_func = (lambda img_id, image, annotation: preprocess_fn(img_id, image, annotation, is_training))
 
-    if not is_training:
+    if is_training:
         # output_columns = ["image", "box", "label", "num_match"]
         output_columns = ["image", "pos_inds", "pos_grid_cell_centers", "pos_bbox_targets", "target_corners", "assign_labels"]
         # pos_inds, pos_grid_cell_centers, pos_bbox_targets, target_corners, assign_labels

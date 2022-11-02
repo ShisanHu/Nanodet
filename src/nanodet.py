@@ -12,7 +12,8 @@ from mindspore.parallel._auto_parallel_context import auto_parallel_context
 from mindspore.communication.management import get_group_size
 from mindspore.context import ParallelMode
 import time
-
+import math
+import itertools as it
 
 def ClassificationModel(in_channel, kernel_size=3,
                         stride=1, pad_mod='same', num_classes=80, feature_size=256):
@@ -66,7 +67,6 @@ class ChannelShuffle(nn.Cell):
         x = self.reshape(x, (2, -1, num_channels // 2, height, width,))
         return x[0:1, :, :, :, :], x[-1:, :, :, :, :]
 
-
 class MultiConcat(nn.Cell):
     def __init__(self):
         super(MultiConcat, self).__init__()
@@ -83,7 +83,6 @@ class MultiConcat(nn.Cell):
         ans = self.concat(output)
         return ans
 
-
 class Integral(nn.Cell):
     def __init__(self, config):
         super(Integral, self).__init__()
@@ -99,22 +98,21 @@ class Integral(nn.Cell):
         x = self.dense(x).reshape(*shape[:-1], 4)
         return x
 
-
 class IntegralII(nn.Cell):
     def __init__(self, config):
         super(IntegralII, self).__init__()
         self.reg_max = config.reg_max
         self.softmax = P.Softmax(axis=-1)
-
         self.start = Tensor(0, mstype.float32)
         self.stop = Tensor(config.reg_max)
-        self.linspace = Tensor([[0, 1, 2, 3, 4, 5, 6, 7]], mstype.float32)
-        self.dense = nn.Dense(self.reg_max + 1, 1, weight_init=self.linspace)
+        linspace = Tensor([[0, 1, 2, 3, 4, 5, 6, 7]], mstype.float32)
+        self.dense = nn.Dense(8, 1, weight_init=linspace)
         self.reshape = P.Reshape()
+        self.shape = P.Shape()
 
     def construct(self, x):
-        shape = x.shape
-        x = self.softmax(x.reshape(*shape[:-1], 4, self.reg_max + 1))
+        shape = self.shape(x)
+        x = self.softmax(x.reshape(*shape[:-1], 4, 8))
         x = self.dense(x).reshape(*shape[:-1], 4)
         return x
 
@@ -130,7 +128,6 @@ class Distance2bbox(nn.Cell):
         x2 = points[..., 0] + distance[..., 2]
         y2 = points[..., 1] + distance[..., 3]
         return self.stack([x1, y1, x2, y2])
-
 
 class ShuffleV2Block(nn.Cell):
     def __init__(self, inp, oup, mid_channels, *, ksize, stride):
@@ -197,7 +194,6 @@ class ShuffleV2Block(nn.Cell):
         x = P.Reshape()(x, (2, -1, num_channels // 2, height, width,))
         return x[0:1, :, :, :, :], x[-1:, :, :, :, :]
 
-
 class ShuffleV2BlockII(nn.Cell):
     def __init__(self, in_channels, mid_channels, out_channels, k_size, stride):
         super(ShuffleV2BlockII, self).__init__()
@@ -230,13 +226,13 @@ class MultiPred(nn.Cell):
     def __init__(self, config):
         super(MultiPred, self).__init__()
         out_channels = config.extras_out_channels
-        self.reg_max = config.reg_max
+        reg_max = config.reg_max
         # out_channels = [96,96,96]
         cls_layers = []
         reg_layers = []
         for i, out_channel in enumerate(out_channels):
             cls_layers += [ClassificationModel(in_channel=out_channel)]
-            reg_layers += [RegressionModel(in_channel=out_channel, reg_max=self.reg_max)]
+            reg_layers += [RegressionModel(in_channel=out_channel, reg_max=reg_max)]
 
         self.multi_cls_layers = nn.CellList(cls_layers)
         self.multi_reg_layers = nn.CellList(reg_layers)
@@ -250,7 +246,6 @@ class MultiPred(nn.Cell):
             cls_outputs += (self.multi_cls_layers[idx](inputs[idx]),)
             reg_outputs += (self.multi_reg_layers[idx](inputs[idx]),)
         return self.multi_concat(cls_outputs), self.multi_concat(reg_outputs)
-
 
 class ShuffleNetV2II(nn.Cell):
     def __init__(self, model_size='1.0x'):
@@ -371,6 +366,7 @@ class ShuffleNetV2III(nn.Cell):
         C2 = self.stage2(C1)
         C3 = self.stage3(C2)
         C4 = self.stage4(C3)
+
         return C2, C3, C4
 
 def shuffleNet(model_size='1.0x'):
@@ -412,10 +408,14 @@ class NanoDetII(nn.Cell):
 
         P3 = P3 + self.P_downSample2(P2)
         P4 = P4 + self.P_downSample1(P3)
+
+        P2 = self.P2_2(P2)
+        P3 = self.P3_2(P3)
+        P4 = self.P4_2(P4)
+
         multi_feature = (P2, P3, P4)
         pred_cls, pred_reg = self.multiPred(multi_feature)
         return pred_cls, pred_reg
-
 
 class QualityFocalLossII(nn.Cell):
     def __init__(self, beta=2.0, loss_weight=1.0):
@@ -484,7 +484,6 @@ class QualityFocalLossIII(nn.Cell):
         loss = loss / len(pos)
         return loss
 
-
 class DistributionFocalLossII(nn.Cell):
     def __init__(self, loss_weight=0.25):
         super(DistributionFocalLossII, self).__init__()
@@ -545,7 +544,6 @@ class GIouLossII(nn.Cell):
         gious_loss = self.loss_weight * gious_loss
         return gious_loss
 
-
 class Overlaps(nn.Cell):
     def __init__(self, eps=1e-6):
         super(Overlaps, self).__init__()
@@ -581,7 +579,6 @@ class NanoDetWithLossCell(nn.Cell):
         self.qfl_loss = QualityFocalLossIII()
         self.dfs_loss = DistributionFocalLossII()
         self.integral = IntegralII(config)
-        # self.zerosLike = P.ZerosLike()
         self.zeros = P.Zeros()
         self.distance2bbox = Distance2bbox()
         self.reshape = P.Reshape()
@@ -591,8 +588,8 @@ class NanoDetWithLossCell(nn.Cell):
     def construct(self, x, pos_inds: Tensor, pos_grid_cell_center: Tensor, pos_decode_bbox_targets: Tensor,
                   target_corners: Tensor, assign_labels: Tensor):
         cls_scores, bbox_preds = self.network(x)
-        cls_scores = cls_scores.reshape(-1, config.num_classes)
-        bbox_preds = bbox_preds.reshape(-1, 4 * (config.reg_max + 1))
+        cls_scores = cls_scores.reshape(-1, 80)
+        bbox_preds = bbox_preds.reshape(-1, 4 * (self.reg_max + 1))
 
         pos_size = pos_inds.size
         pos_inds = pos_inds.squeeze()
@@ -612,13 +609,11 @@ class NanoDetWithLossCell(nn.Cell):
         score[pos_inds] = self.bbox_overlaps(pos_decode_bbox_pred, pos_decode_bbox_targets)
         # score[None][:, pos_inds] = self.bbox_overlaps(pos_decode_bbox_pred, pos_decode_bbox_targets)
         target = (assign_labels, score)
-        giou_loss = self.reduce_sum(self.giou_loss(pos_decode_bbox_pred, pos_decode_bbox_targets)) // pos_size * 0.3
+        giou_loss = self.reduce_sum(self.giou_loss(pos_decode_bbox_pred, pos_decode_bbox_targets))
         dfs_loss = self.reduce_sum(self.dfs_loss(pred_corners, target_corners, pos_inds))
-        # qfl_loss = self.reduce_sum(self.qfl_loss(cls_scores, target, pos_inds)) // pos_size * 0.2
         qfl_loss = self.reduce_sum(self.qfl_loss(cls_scores, assign_labels, score, pos_inds))
         loss = giou_loss + dfs_loss + qfl_loss
         return loss
-
 
 class TrainingWrapper(nn.Cell):
     def __init__(self, network, optimizer, sens=1.0):
@@ -660,65 +655,47 @@ if __name__ == "__main__":
     backbone = shuffleNet()
     a = time.time()
     ms.set_context(mode=ms.PYNATIVE_MODE, device_target="CPU")
-    backboneII = ShuffleNetV2II()
+    # backboneII = ShuffleNetV2II()
     x = Tensor(np.random.randint(0, 255, (1, 3, 320, 320)), mstype.float32)
     # outs = backbone(x)
-    # outs_III = backbone(x)
+    outs_III = backbone(x)
     # outs_II = backboneII(x)
     nanodet = NanoDetII(backbone, config)
     out = nanodet(x)
     net = NanoDetWithLossCell(nanodet, config)
 
-    class GeneratDefaultGridCells:
+
+    class GeneratDefaultGridCellsII:
         def __init__(self):
-            feature_size = [[40, 40], [20, 20], [10, 10]]
-            steps = [8, 16, 32]
-            anchor_size = np.array([8,16,32], np.float32)
-            feature_size = np.array(feature_size)
-            strides = np.array(steps)
+            fk = config.img_shape[0] / np.array(config.strides)
+            scales = np.array(config.scales)
+            anchor_size = np.array(config.anchor_size)
             self.default_multi_level_grid_cells = []
-            # config.feature_size = [[40, 40], [20, 20], [10, 10]]
-            for idex, feature_size in enumerate(feature_size):
-                base_size = anchor_size[idex] / 320
-                stride = strides[idex]
-                h, w = feature_size
-                x_range = (np.arange(w) + 0.5) * stride
-                y_range = (np.arange(h) + 0.5) * stride
-                # x_range = np.arange(feature_size[0])
-                # y_range = np.arange(feature_size[1])
-                y_feat, x_feat = np.meshgrid(x_range, y_range)
+            # config.feature_size = [40, 20, 10]
+            for idex, feature_size in enumerate(config.feature_size):
+                base_size = anchor_size[idex] / config.img_shape[0]
+                size = base_size * scales[idex]
+                all_sizes = []
+                w, h = size * math.sqrt(config.aspect_ratio), size / math.sqrt(config.aspect_ratio)
+                all_sizes.append((h, w))
+                for i, j in it.product(range(feature_size), repeat=2):
+                    for h, w in all_sizes:
+                        cx, cy = (j + 0.5) / fk[idex], (i + 0.5) / fk[idex]
+                        self.default_multi_level_grid_cells.append([cx, cy, h, w])
+            def to_ltrb(cy, cx, h, w):
+                return cy - h / 2, cx - w / 2, cy + h / 2, cx + w / 2
 
-                # y_feat = (y_feat + 0.5) / h
-                # x_feat = (x_feat + 0.5) / h
-
-                y_feat, x_feat = y_feat.flatten(), x_feat.flatten()
-                grid_cells = np.stack(
-                    [
-                        x_feat - 0.5 * stride,
-                        y_feat - 0.5 * stride,
-                        x_feat + 0.5 * stride,
-                        y_feat + 0.5 * stride
-                    ],
-                    axis=-1
-                )
-                # grid_cells = np.stack(
-                #     [
-                #         x_feat - base_size / 2,
-                #         y_feat - base_size / 2,
-                #         x_feat + base_size / 2,
-                #         y_feat + base_size / 2
-                #     ],
-                #     axis=-1
-                # )
-
-                self.default_multi_level_grid_cells.append(grid_cells)
+            self.default_multi_level_grid_cells_ltrb = np.array(
+                tuple(to_ltrb(*i) for i in self.default_multi_level_grid_cells), dtype='float32')
+            self.default_multi_level_grid_cells = np.array(self.default_multi_level_grid_cells, dtype='float32')
 
 
-    # nanodet list
-    default_multi_level_grid_cells = GeneratDefaultGridCells().default_multi_level_grid_cells
-    num_level_cells_list = [grid_cells.shape[0] for grid_cells in default_multi_level_grid_cells]
-    mlvl_grid_cells = np.concatenate(default_multi_level_grid_cells, axis=0, dtype=np.float32)
-    y1, x1, y2, x2 = np.split(mlvl_grid_cells[:, :4], 4, axis=-1)
+    default_multi_level_grid_cells_ltrb = GeneratDefaultGridCellsII().default_multi_level_grid_cells_ltrb
+    default_multi_level_grid_cells = GeneratDefaultGridCellsII().default_multi_level_grid_cells
+    num_level_cells_list = [1600, 400, 100]
+    mlvl_grid_cells = default_multi_level_grid_cells_ltrb
+    y1, x1, y2, x2 = np.split(default_multi_level_grid_cells_ltrb[:, :4], 4, axis=-1)
+    # The area of Anchor
     vol_anchors = (x2 - x1) * (y2 - y1)
 
 
@@ -915,9 +892,9 @@ if __name__ == "__main__":
         return inter / union
 
 
-    boxes = np.array([[50, 70, 200, 200, 32], [40, 90, 170, 100, 1]], np.float32)
-    # boxes[:, [0, 2]] = boxes[:, [0, 2]] / 320
-    # boxes[:, [1, 3]] = boxes[:, [1, 3]] / 320
+    boxes = np.array([[50, 70, 200, 200, 32], [40, 90, 170, 100, 0]], np.float32)
+    boxes[:, [0, 2]] = boxes[:, [0, 2]] / 320
+    boxes[:, [1, 3]] = boxes[:, [1, 3]] / 320
     # boxes = np.array([[50, 70, 200, 200, 32], [40, 90, 170, 100, 1]])
     pos_inds, pos_grid_cell_center, pos_decode_bbox_targets, target_corners, assign_labels = nanodet_bboxes_encode(
         boxes)
