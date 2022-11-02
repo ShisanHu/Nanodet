@@ -132,7 +132,7 @@ def main():
 
     if config.device_target == "Ascend":
         # context.set_context(mode=context.PYNATIVE_MODE, device_target="Ascend",pynative_synchronize=True)
-        context.set_context(mode=context.GRAPH_MODE, device_target="Ascend", pynative_synchronize=True)
+        context.set_context(mode=context.GRAPH_MODE, device_target="Ascend")
         if config.distribute:
             if os.getenv("DEVICE_ID", "not_set").isdigit():
                 context.set_context(device_id=get_device_id())
@@ -228,12 +228,12 @@ def main():
     if config.distribute:
         if rank == 0:
             cb += [ckpt_cb]
-        # model.train(config.epoch_size, dataset, callbacks=cb, dataset_sink_mode=True)
-        model.train(config.epoch_size, dataset, callbacks=cb, dataset_sink_mode=False)
+        model.train(config.epoch_size, dataset, callbacks=cb, dataset_sink_mode=True)
+        # model.train(config.epoch_size, dataset, callbacks=cb, dataset_sink_mode=False)
     else:
         cb += [ckpt_cb]
-        # model.train(config.epoch_size, dataset, callbacks=cb, dataset_sink_mode=True)
-        model.train(config.epoch_size, dataset, callbacks=cb, dataset_sink_mode=False)
+        model.train(config.epoch_size, dataset, callbacks=cb, dataset_sink_mode=True)
+        # model.train(config.epoch_size, dataset, callbacks=cb, dataset_sink_mode=False)
 
 if __name__ == '__main__':
     main()

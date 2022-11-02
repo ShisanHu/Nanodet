@@ -4,7 +4,6 @@
     <list default="true" id="e2c92681-dcc6-4d51-97b9-fae8ff244f6e" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/config/nanodet-default.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/config/nanodet-default.yaml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/msTest.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/msTest.ipynb" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/box_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/box_utils.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/nanodet.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/nanodet.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/train.py" beforeDir="false" afterPath="$PROJECT_DIR$/train.py" afterDir="false" />
@@ -55,9 +54,9 @@
     "RunOnceActivity.OpenProjectViewOnStart": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "WebServerToolWindowFactoryState": "false",
-    "last_opened_file_path": "D:/VSCoding/nanodet-Finalii/train.py",
+    "last_opened_file_path": "D:/Google/ChromeDowload/box_utils.py",
     "settings.editor.selected.configurable": "advanced.settings",
-    "two.files.diff.last.used.file": "D:/VSCoding/nanodet-Finalii/train.py"
+    "two.files.diff.last.used.file": "D:/Google/ChromeDowload/box_utils.py"
   }
 }]]></component>
   <component name="RecentsManager">
@@ -156,7 +155,7 @@
       <workItem from="1667092538288" duration="2310000" />
       <workItem from="1667180454993" duration="40285000" />
       <workItem from="1667303313394" duration="18245000" />
-      <workItem from="1667382261260" duration="437000" />
+      <workItem from="1667382261260" duration="6439000" />
     </task>
     <servers />
   </component>
@@ -193,15 +192,6 @@
     </option>
   </component>
   <component name="XDebuggerManager">
-    <breakpoint-manager>
-      <breakpoints>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/src/nanodet.py</url>
-          <line>614</line>
-          <option name="timeStamp" value="50" />
-        </line-breakpoint>
-      </breakpoints>
-    </breakpoint-manager>
     <watches-manager>
       <configuration name="PythonConfigurationType">
         <watch expression="giou_loss" />
@@ -213,6 +203,6 @@
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/Nanodet$train.coverage" NAME="train Coverage Results" MODIFIED="1666950252720" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/../nanodet-Finalii" />
     <SUITE FILE_PATH="coverage/Nanodet$yuketang.coverage" NAME="yuketang Coverage Results" MODIFIED="1666874649929" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/Nanodet$nanodet.coverage" NAME="nanodet Coverage Results" MODIFIED="1667382086558" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
+    <SUITE FILE_PATH="coverage/Nanodet$nanodet.coverage" NAME="nanodet Coverage Results" MODIFIED="1667392877826" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
   </component>
 </project>

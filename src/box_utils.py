@@ -232,7 +232,7 @@ def nanodet_bboxes_encode(boxes):
     gt_bboxes = []
     overlaps = []
     for bbox in boxes:
-        gt_labels.append(bbox[4])
+        gt_labels.append(bbox[4]-1)
         label = int(bbox[4])
         gt_bboxes.append(bbox[:4])
         overlap = bbox_overlaps(bbox)

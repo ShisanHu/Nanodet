@@ -479,7 +479,7 @@ class QualityFocalLossIII(nn.Cell):
         pos_label = label[pos]
         scale_factor = score[pos] - pred_sigmoid[pos, pos_label]
         loss[pos, pos_label] = self.binary_cross_entropy_with_logits(pred[pos, pos_label], score[pos]) * self.pow(scale_factor.abs(), self.beta)
-        loss = self.reduce_sum(loss, axis=1)
+        loss = self.reduce_sum(loss, 1)
         loss = loss * self.loss_weight
         loss = loss / len(pos)
         return loss
@@ -601,7 +601,7 @@ class NanoDetWithLossCell(nn.Cell):
         pos_bbox_pred = bbox_preds[pos_inds]
         pos_bbox_pred_corners = self.integral(pos_bbox_pred)
         pos_decode_bbox_pred = self.distance2bbox(pos_grid_cell_center, pos_bbox_pred_corners)
-        pred_corners = self.reshape(pos_bbox_pred, (-1, config.reg_max + 1))
+        pred_corners = self.reshape(pos_bbox_pred, (-1, self.reg_max + 1))
         # pred_corners = pos_bbox_pred.reshape(-1)
         # int64这里出现
         score = self.zeros(assign_labels.shape, ms.float32)
