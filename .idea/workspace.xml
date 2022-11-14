@@ -5002,14 +5002,7 @@
       <change afterPath="$PROJECT_DIR$/../models/official/cv/retinanet/cocodataset/val2017/000000581482.jpg" afterDir="false" />
       <change afterPath="$PROJECT_DIR$/../models/official/cv/retinanet/cocodataset/val2017/000000581615.jpg" afterDir="false" />
       <change afterPath="$PROJECT_DIR$/../models/official/cv/retinanet/cocodataset/val2017/000000581781.jpg" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/nanodet.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/nanodet.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/create_data.py" beforeDir="false" afterPath="$PROJECT_DIR$/create_data.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/eval.py" beforeDir="false" afterPath="$PROJECT_DIR$/eval.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/nanodet.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/nanodet.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/train.py" beforeDir="false" afterPath="$PROJECT_DIR$/train.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../models/official/cv/retinanet/config/default_config.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/../models/official/cv/retinanet/config/default_config.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../models/official/cv/retinanet/create_data.py" beforeDir="false" afterPath="$PROJECT_DIR$/../models/official/cv/retinanet/create_data.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../models/official/cv/retinanet/postprocess.py" beforeDir="false" afterPath="$PROJECT_DIR$/../models/official/cv/retinanet/postprocess.py" afterDir="false" />
@@ -5238,7 +5231,7 @@
       <workItem from="1668234999086" duration="619000" />
       <workItem from="1668320490730" duration="13087000" />
       <workItem from="1668338031400" duration="12429000" />
-      <workItem from="1668389168090" duration="17752000" />
+      <workItem from="1668389168090" duration="18122000" />
     </task>
     <servers />
   </component>
@@ -5287,11 +5280,6 @@
           <line>917</line>
           <option name="timeStamp" value="13" />
         </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/src/nanodet.py</url>
-          <line>634</line>
-          <option name="timeStamp" value="16" />
-        </line-breakpoint>
       </breakpoints>
       <default-breakpoints>
         <breakpoint type="python-exception">
@@ -5318,6 +5306,6 @@
     <SUITE FILE_PATH="coverage/Nanodet$yuketang.coverage" NAME="yuketang Coverage Results" MODIFIED="1666874649929" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/Nanodet$retinanet.coverage" NAME="retinanet Coverage Results" MODIFIED="1668354314886" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/../models/official/cv/retinanet/src" />
     <SUITE FILE_PATH="coverage/Nanodet$pan__1_.coverage" NAME="pan (1) Coverage Results" MODIFIED="1668411116988" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/new" />
-    <SUITE FILE_PATH="coverage/Nanodet$nanodet.coverage" NAME="nanodet Coverage Results" MODIFIED="1668427396350" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
+    <SUITE FILE_PATH="coverage/Nanodet$nanodet.coverage" NAME="nanodet Coverage Results" MODIFIED="1668427505775" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
   </component>
 </project>
