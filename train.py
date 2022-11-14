@@ -200,6 +200,9 @@ def main():
         load_param_into_net(net, param_dict)
 
     # 关键之处===========================================================================================
+
+    opt = nn.SGD()
+
     lr = Tensor(get_lr(global_step=0,
                        lr_init=config.lr_init, lr_end=config.lr_end_rate * config.lr, lr_max=config.lr,
                        warmup_epochs1=config.warmup_epochs1, warmup_epochs2=config.warmup_epochs2,
@@ -210,13 +213,14 @@ def main():
     opt = nn.Momentum(filter(lambda x: x.requires_grad, net.get_parameters()), lr,
                       config.momentum, config.weight_decay, loss_scale)
 
+
     net = TrainingWrapper(net, opt, loss_scale)
 
     model = Model(net)
 
     print("Start train NanoDet, the first epoch will be slower because of the graph compilation.")
 
-    cb = [TimeMonitor(), LossMonitor()]
+    cb = [TimeMonitor(), LossMonitor(10)]
     cb += [Monitor(lr_init=lr.asnumpy())]
 
     config_ck = CheckpointConfig(save_checkpoint_steps=dataset_size * config.save_checkpoint_epochs,

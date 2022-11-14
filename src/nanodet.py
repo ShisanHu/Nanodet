@@ -31,13 +31,13 @@ def RegressionModel(in_channel, reg_max, kernel_size=3, stride=1, pad_mod='same'
 
 
 def ShuffleBlockMainBranch(in_channels, mid_channels, out_channels, k_size, stride):
-    conv1 = nn.Conv2d(in_channels=in_channels, out_channels=mid_channels, kernel_size=1, stride=1, pad_mode='same')
+    conv1 = nn.Conv2d(in_channels=in_channels, out_channels=mid_channels, kernel_size=1, stride=1, pad_mode='pad', padding=0, has_bias=False)
     norm1 = nn.BatchNorm2d(num_features=mid_channels, momentum=0.9)
     relu1 = nn.ReLU()
     conv2 = nn.Conv2d(in_channels=mid_channels, out_channels=mid_channels, kernel_size=k_size, stride=stride,
-                      pad_mode='same', group=mid_channels)
+                      pad_mode='pad', padding=1, group=mid_channels, has_bias=False)
     norm2 = nn.BatchNorm2d(num_features=mid_channels, momentum=0.9)
-    conv3 = nn.Conv2d(in_channels=mid_channels, out_channels=out_channels, kernel_size=1, stride=1, pad_mode='same')
+    conv3 = nn.Conv2d(in_channels=mid_channels, out_channels=out_channels, kernel_size=1, stride=1, pad_mode='pad', padding=0, has_bias=False)
     norm3 = nn.BatchNorm2d(num_features=out_channels, momentum=0.9)
     relu2 = nn.ReLU()
     return nn.SequentialCell([conv1, norm1, relu1, conv2, norm2, conv3, norm3, relu2])
@@ -45,13 +45,52 @@ def ShuffleBlockMainBranch(in_channels, mid_channels, out_channels, k_size, stri
 
 def ShuffleBlockSubBranch(in_channels, k_size, stride):
     conv1 = nn.Conv2d(in_channels=in_channels, out_channels=in_channels, kernel_size=k_size, stride=stride,
-                      pad_mode='same', group=in_channels)
+                      pad_mode='pad', padding=1, group=in_channels, has_bias=False)
     norm1 = nn.BatchNorm2d(num_features=in_channels, momentum=0.9)
-    conv2 = nn.Conv2d(in_channels=in_channels, out_channels=in_channels, kernel_size=1, stride=1, pad_mode='same')
+    conv2 = nn.Conv2d(in_channels=in_channels, out_channels=in_channels, kernel_size=1, stride=1, pad_mode='pad', padding=0, has_bias=False)
     norm2 = nn.BatchNorm2d(num_features=in_channels, momentum=0.9)
     relu = nn.ReLU()
     return nn.SequentialCell([conv1, norm1, conv2, norm2, relu])
 
+class DepthwiseConvModule(nn.Cell):
+    def __init__(
+            self,
+            in_channels,
+            out_channels,
+            kernel_size,
+            stride=1,
+            padding=0,
+    ):
+        super(DepthwiseConvModule, self).__init__()
+
+        self.depthwise = nn.Conv2d(
+            in_channels,
+            in_channels,
+            kernel_size,
+            stride=stride,
+            pad_mode='pad',
+            padding=padding,
+            group=in_channels,
+            has_bias=False,
+        )
+        self.pointwise = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1, padding=0, has_bias=False)
+        self.dwnorm = nn.BatchNorm2d(in_channels)
+        self.pwnorm = nn.BatchNorm2d(out_channels)
+        self.act = nn.ReLU()
+        self.init_weights()
+
+    def construct(self, inputs):
+        # order = ("depthwise", "dwnorm", "act", "pointwise", "pwnorm", "act"),)
+        x = self.depthwise(inputs)
+        x = self.dwnorm(x)
+        x = self.act(x)
+        x = self.pointwise(x)
+        x = self.pwnorm(x)
+        x = self.act(x)
+        return x
+
+    def init_weights(self):
+        pass
 
 class ChannelShuffle(nn.Cell):
     def __init__(self):
@@ -139,20 +178,21 @@ class ShuffleV2Block(nn.Cell):
         self.pad = pad
         self.inp = inp
         outputs = oup - inp
+
         branch_main = [
             # pw
             nn.Conv2d(in_channels=inp, out_channels=mid_channels, kernel_size=1, stride=1,
-                      pad_mode='same', padding=0, has_bias=False),
+                      pad_mode='pad', padding=0, has_bias=False),
             nn.BatchNorm2d(num_features=mid_channels, momentum=0.9),
             nn.ReLU(),
             # dw
             nn.Conv2d(in_channels=mid_channels, out_channels=mid_channels, kernel_size=ksize, stride=stride,
-                      pad_mode='same', padding=0, group=mid_channels, has_bias=False),
+                      pad_mode='pad', padding=pad, group=mid_channels, has_bias=False),
 
             nn.BatchNorm2d(num_features=mid_channels, momentum=0.9),
             # pw-linear
             nn.Conv2d(in_channels=mid_channels, out_channels=outputs, kernel_size=1, stride=1,
-                      pad_mode='same', padding=0, has_bias=False),
+                      pad_mode='pad', padding=0, has_bias=False),
             nn.BatchNorm2d(num_features=outputs, momentum=0.9),
             nn.ReLU(),
         ]
@@ -162,11 +202,11 @@ class ShuffleV2Block(nn.Cell):
             branch_proj = [
                 # dw
                 nn.Conv2d(in_channels=inp, out_channels=inp, kernel_size=ksize, stride=stride,
-                          pad_mode='same', padding=0, group=inp, has_bias=False),
+                          pad_mode='pad', padding=pad, group=inp, has_bias=False),
                 nn.BatchNorm2d(num_features=inp, momentum=0.9),
                 # pw-linear
                 nn.Conv2d(in_channels=inp, out_channels=inp, kernel_size=1, stride=1,
-                          pad_mode='same', padding=0, has_bias=False),
+                          pad_mode='pad', padding=0, has_bias=False),
                 nn.BatchNorm2d(num_features=inp, momentum=0.9),
                 nn.ReLU(),
             ]
@@ -222,6 +262,74 @@ class ShuffleV2BlockII(nn.Cell):
             return self.concat((self.sub_branch(x_sub), self.main_branch(x_main)))
         return None
 
+class ShuffleV2BlockIII(nn.Cell):
+    def __init__(self,inp, oup, stride):
+        super(ShuffleV2BlockIII, self).__init__()
+        self.stride = stride
+        branch_features = oup // 2
+        if self.stride > 1:
+            self.branch1 = nn.SequentialCell([
+                self.depthwise_conv(inp, inp, kernel_size=3, stride=self.stride, padding=1),
+                nn.BatchNorm2d(inp),
+                nn.Conv2d(inp,branch_features,kernel_size=1,stride=1,padding=0,has_bias=False),
+                nn.BatchNorm2d(branch_features),
+                nn.ReLU(),
+            ])
+        else:
+            self.branch1 = nn.SequentialCell()
+        self.branch2 = nn.SequentialCell([
+            nn.Conv2d(
+                inp if (self.stride > 1) else branch_features,
+                branch_features,
+                kernel_size=1,
+                stride=1,
+                padding=0,
+                has_bias=False,
+            ),
+            nn.BatchNorm2d(branch_features),
+            nn.ReLU(),
+            self.depthwise_conv(
+                branch_features,
+                branch_features,
+                kernel_size=3,
+                stride=self.stride,
+                padding=1,
+            ),
+            nn.BatchNorm2d(branch_features),
+            nn.Conv2d(
+                branch_features,
+                branch_features,
+                kernel_size=1,
+                stride=1,
+                padding=0,
+                has_bias=False,
+            ),
+            nn.BatchNorm2d(branch_features),
+            nn.ReLU(),
+        ])
+
+    @staticmethod
+    def depthwise_conv(i, o, kernel_size, stride=1, padding=0, bias=False):
+        return nn.Conv2d(i, o, kernel_size, stride, "pad", padding,group=i, has_bias=bias)
+
+    def construct(self, x):
+        if self.stride == 1:
+            x1, x2 = P.Split(axis=1,output_num=2)(x)
+            out = P.Concat(axis=1)((x1, self.branch2(x2)))
+        else:
+            out = P.Concat(axis=1)((self.branch1(x), self.branch2(x)))
+        out = channel_shuffle(out, 2)
+        return out
+
+def channel_shuffle(x, groups):
+    batchsize, num_channels, height, width = x.shape
+    channels_per_group = num_channels // groups
+    # reshape
+    x = P.Reshape()(x, (batchsize, groups, channels_per_group, height, width))
+    x = P.Transpose()(x, (0, 2, 1, 3, 4))
+    x = P.Reshape()(x, (batchsize, -1, height, width))
+    return x
+
 class MultiPred(nn.Cell):
     def __init__(self, config):
         super(MultiPred, self).__init__()
@@ -269,9 +377,10 @@ class ShuffleNetV2II(nn.Cell):
 
         self.first_conv = nn.SequentialCell([
             nn.Conv2d(in_channels=3, out_channels=input_channel, kernel_size=3, stride=2,
-                      pad_mode='same', has_bias=False),
+                      padding=1, pad_mode='pad', has_bias=False),
             nn.BatchNorm2d(num_features=input_channel, momentum=0.9),
             nn.ReLU(),
+            # nn.LeakyReLU()
         ])
 
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, pad_mode='same')
@@ -286,6 +395,7 @@ class ShuffleNetV2II(nn.Cell):
             # -> 0 1 2  -> 116 232 464
             output_channel = self.stage_out_channels[idxstage + 2]
             # -> 4 8 4
+
             for i in range(numrepeat):
                 if i == 0:
                     self.features.append(ShuffleV2Block(input_channel, output_channel,
@@ -311,66 +421,61 @@ class ShuffleNetV2II(nn.Cell):
         return outputs
 
 class ShuffleNetV2III(nn.Cell):
-    def __init__(self, block, model_size='1.0x'):
+    def __init__(self,model_size='1.0x'):
         super(ShuffleNetV2III, self).__init__()
         print('model size is ', model_size)
-        stage_repeats = [4, 8, 4]
-        if model_size == '0.5x':
-            stage_out_channels = [-1, 24, 48, 96, 192, 1024]
-        elif model_size == '1.0x':
-            stage_out_channels = [-1, 24, 116, 232, 464, 1024]
-        elif model_size == '1.5x':
-            stage_out_channels = [-1, 24, 176, 352, 704, 1024]
-        elif model_size == '2.0x':
-            stage_out_channels = [-1, 24, 244, 488, 976, 2048]
+        self.stage_repeats = [4, 8, 4]
+        self.out_stages = (2, 3, 4)
+
+        if model_size == "0.5x":
+            self._stage_out_channels = [24, 48, 96, 192, 1024]
+        elif model_size == "1.0x":
+            self._stage_out_channels = [24, 116, 232, 464, 1024]
+        elif model_size == "1.5x":
+            self._stage_out_channels = [24, 176, 352, 704, 1024]
+        elif model_size == "2.0x":
+            self._stage_out_channels = [24, 244, 488, 976, 2048]
         else:
             raise NotImplementedError
 
-        input_channel = stage_out_channels[1]
+        output_channels = self._stage_out_channels[0]
         self.conv1 = nn.SequentialCell([
-            nn.Conv2d(in_channels=3, out_channels=input_channel, kernel_size=3, stride=2, pad_mode='same'),
-            nn.BatchNorm2d(num_features=input_channel, momentum=0.9),
+            nn.Conv2d(in_channels=3, out_channels=output_channels, kernel_size=3, stride=2,
+                      pad_mode='pad', padding=1, has_bias=False),
+            nn.BatchNorm2d(num_features=output_channels),
             nn.ReLU(),
+            # nn.LeakyReLU(),
         ])
-        self.pool1 = nn.MaxPool2d(kernel_size=3, stride=2, pad_mode='same')
-
-        self.stage2 = self._make_layer(block,
-                                       stage_repeats[0],
-                                       in_channel=input_channel,
-                                       out_channel=stage_out_channels[2],
-                                       stride=2)
-        self.stage3 = self._make_layer(block,
-                                       stage_repeats[1],
-                                       in_channel=stage_out_channels[2],
-                                       out_channel=stage_out_channels[3],
-                                       stride=2)
-        self.stage4 = self._make_layer(block,
-                                       stage_repeats[2],
-                                       in_channel=stage_out_channels[3],
-                                       out_channel=stage_out_channels[4],
-                                       stride=2)
-
-    def _make_layer(self, block, layer_num, in_channel, out_channel, stride):
-        layers = []
-        nanodet_block = ShuffleV2BlockII(in_channel, mid_channels=out_channel // 2, out_channels=out_channel, k_size=3, stride=stride)
-        layers.append(nanodet_block)
-        for _ in range(1, layer_num):
-            nanodet_block = ShuffleV2BlockII(out_channel // 2, mid_channels=out_channel // 2, out_channels=out_channel, k_size=3, stride=1)
-            layers.append(nanodet_block)
-        return nn.SequentialCell(layers)
+        input_channels = output_channels
+        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, pad_mode='same')
+        stage_names = ["stage{}".format(i) for i in [2, 3, 4]]
+        for name, repeats, output_channels in zip(
+                stage_names, self.stage_repeats, self._stage_out_channels[1:]
+        ):
+            seq = [
+                ShuffleV2BlockIII(input_channels, output_channels, 2)
+            ]
+            for i in range(repeats - 1):
+                seq.append(
+                    ShuffleV2BlockIII(output_channels, output_channels, 1)
+                )
+            setattr(self, name, nn.SequentialCell(*seq))
+            input_channels = output_channels
+        output_channels = self._stage_out_channels[-1]
 
     def construct(self, x):
         x = self.conv1(x)
-        C1 = self.pool1(x)
-
-        C2 = self.stage2(C1)
-        C3 = self.stage3(C2)
-        C4 = self.stage4(C3)
-
-        return C2, C3, C4
+        x = self.maxpool(x)
+        output = []
+        for i in range(2, 5):
+            stage = getattr(self, "stage{}".format(i))
+            x = stage(x)
+            if i in self.out_stages:
+                output.append(x)
+        return tuple(output)
 
 def shuffleNet(model_size='1.0x'):
-    return ShuffleNetV2III(ShuffleV2BlockII, model_size=model_size)
+    return ShuffleNetV2III(model_size=model_size)
 
 class NanoDetII(nn.Cell):
     def __init__(self, backbone, config, is_training=True):
@@ -409,14 +514,125 @@ class NanoDetII(nn.Cell):
         P3 = P3 + self.P_downSample2(P2)
         P4 = P4 + self.P_downSample1(P3)
 
-        P2 = self.P2_2(P2)
-        P3 = self.P3_2(P3)
-        P4 = self.P4_2(P4)
+        # P2 = self.P2_2(P2)
+        # P3 = self.P3_2(P3)
+        # P4 = self.P4_2(P4)
 
         multi_feature = (P2, P3, P4)
         pred_cls, pred_reg = self.multiPred(multi_feature)
         return pred_cls, pred_reg
 
+class NanoDetIII(nn.Cell):
+    def __init__(self, backbone, config, is_training=True):
+        super(NanoDetIII, self).__init__()
+        self.backbone = backbone
+        feature_size = config.feature_size
+        self.strides = [8, 16, 32]
+        self.ConvModule = DepthwiseConvModule
+        self.lateral_convs = nn.CellList()
+        self.lateral_convs.append(nn.Conv2d(464, 96, kernel_size=1, stride=1, pad_mode='same', has_bias=True))
+        self.lateral_convs.append(nn.Conv2d(232, 96, kernel_size=1, stride=1, pad_mode='same', has_bias=True))
+        self.lateral_convs.append(nn.Conv2d(116, 96, kernel_size=1, stride=1, pad_mode='same', has_bias=True))
+        self.P_upSample1 = P.ResizeBilinear((feature_size[1],feature_size[1]))
+        self.P_upSample2 = P.ResizeBilinear((feature_size[0],feature_size[0]))
+        self.P_downSample1 = P.ResizeBilinear((feature_size[1],feature_size[1]))
+        self.P_downSample2 = P.ResizeBilinear((feature_size[2],feature_size[2]))
+        # self.multiPred = MultiPred(config)
+        self.reshape = P.Reshape()
+        self.concat = P.Concat(axis=2)
+        self.transpose = P.Transpose()
+        self.slice = P.Slice()
+        self._make_layer()
+
+    def _build_shared_head(self):
+        cls_convs = nn.SequentialCell()
+        # reg_convs = nn.CellList()
+        for i in range(2):
+            cls_convs.append(
+                self.ConvModule(
+                    in_channels=96,
+                    out_channels=96,
+                    kernel_size=3,
+                    stride=1,
+                    padding=1,
+                )
+            )
+            # reg_convs.append(
+            #     self.ConvModule(
+            #         in_channels=96,
+            #         out_channels=96,
+            #         kernel_size=3,
+            #         stride=1,
+            #         padding=1,
+            #     )
+            # )
+        # return cls_convs, reg_convs
+        return cls_convs
+
+    def _make_layer(self):
+        self.cls_convs = nn.CellList()
+        # self.reg_convs = nn.CellList()
+        for _ in self.strides:
+            # cls_convs, reg_convs = self._build_shared_head()
+            cls_convs = self._build_shared_head()
+            self.cls_convs.append(cls_convs)
+            # self.reg_convs.append(reg_convs)
+
+        self.gfl_cls = nn.CellList()
+        self.gfl_reg = nn.CellList()
+        for _ in self.strides:
+            self.gfl_cls.append(
+                nn.Conv2d(
+                    in_channels=96,
+                    out_channels=112,
+                    kernel_size=1,
+                    padding=0,
+                    has_bias=True,
+                )
+            )
+        for _ in self.strides:
+            self.gfl_reg.append(
+                nn.Conv2d(
+                    in_channels=96,
+                    out_channels=32,
+                    kernel_size=1,
+                    padding=0,
+                    has_bias=True,
+                )
+            )
+
+    def construct(self, inputs):
+        C2, C3, C4 = self.backbone(x)
+
+        # 对齐通道
+        P4 = self.lateral_convs[0](C4)
+        P3 = self.lateral_convs[1](C3)
+        P2 = self.lateral_convs[2](C2)
+        # top -> down
+        P3 = self.P_upSample1(P4) + P3
+        P2 = self.P_upSample2(P3) + P2
+        # down -> top
+        P3 = self.P_downSample1(P2) + P3
+        P4 = self.P_downSample2(P3) + P4
+
+        # s = self.cls_convs[0](P4)
+        P4 = self.cls_convs[2](P4)
+        P3 = self.cls_convs[1](P3)
+        P2 = self.cls_convs[0](P2)
+
+        P4 = self.gfl_cls[2](P4)
+        P3 = self.gfl_cls[1](P3)
+        P2 = self.gfl_cls[0](P2)
+
+        P4 = self.reshape(P4, (-1, 112, 100))
+        P3 = self.reshape(P3, (-1, 112, 400))
+        P2 = self.reshape(P2, (-1, 112, 1600))
+        preds = self.concat((P2, P3, P4))
+        preds = self.transpose(preds, (0, 2, 1))
+
+        cls_convs = self.slice(preds, (0, 0, 0), (-1, -1, 80))
+        reg_convs = self.slice(preds, (0, 0, 80), (-1, -1, -1))
+        return cls_convs, reg_convs
 class QualityFocalLossII(nn.Cell):
     def __init__(self, beta=2.0, loss_weight=1.0):
         super(QualityFocalLossII, self).__init__()
@@ -503,7 +719,7 @@ class DistributionFocalLossII(nn.Cell):
                 self.cross_entropy(pred, dis_left) * weight_left
                 + self.cross_entropy(pred, dis_right) * weight_right)
         dfl_loss = dfl_loss * self.loss_weight
-        dfl_loss = dfl_loss / len(pos)
+        # dfl_loss = dfl_loss / len(pos)
         return dfl_loss
 
 # class DistributionFocalLossIII(nn.Cell):
@@ -583,6 +799,8 @@ class NanoDetWithLossCell(nn.Cell):
         self.distance2bbox = Distance2bbox()
         self.reshape = P.Reshape()
         self.bbox_overlaps = Overlaps()
+        self.sigmoid = P.Sigmoid()
+        self.max = P.ArgMaxWithValue(axis=1)
 
     # def construct(self, x, gt_meta):
     def construct(self, x, pos_inds: Tensor, pos_grid_cell_center: Tensor, pos_decode_bbox_targets: Tensor,
@@ -590,6 +808,9 @@ class NanoDetWithLossCell(nn.Cell):
         cls_scores, bbox_preds = self.network(x)
         cls_scores = cls_scores.reshape(-1, 80)
         bbox_preds = bbox_preds.reshape(-1, 4 * (self.reg_max + 1))
+
+        weight_targets = self.sigmoid(cls_scores)
+        weight_targets = self.max(weight_targets)[1][pos_inds]
 
         pos_size = pos_inds.size
         pos_inds = pos_inds.squeeze()
@@ -651,6 +872,30 @@ class TrainingWrapper(nn.Cell):
         self.optimizer(grads)
         return loss
 
+class NanodetInferWithDecoder(nn.Cell):
+    def __init__(self, network, default_boxes, config):
+        super(NanodetInferWithDecoder, self).__init__()
+        self.network = network
+        self.default_boxes = default_boxes
+        self.prior_scaling_xy = config.prior_scaling[0]
+        self.prior_scaling_wh = config.prior_scaling[1]
+
+    def construct(self, x):
+        pred_loc, pred_label = self.network(x)
+        default_bbox_xy = self.default_boxes[..., :2]
+        default_bbox_wh = self.default_boxes[..., 2:]
+
+        pred_xy = pred_loc[..., :2] * self.prior_scaling_xy * default_bbox_wh + default_bbox_xy
+        pred_wh = P.Exp()(pred_loc[..., 2:] * self.prior_scaling_wh) * default_bbox_wh
+
+        pred_xy_0 = pred_xy - pred_wh / 2.0
+        pred_xy_1 = pred_xy + pred_wh / 2.0
+        pred_xy = P.Concat(-1)((pred_xy_0, pred_xy_1))
+        pred_xy = P.Maximum()(pred_xy, 0)
+        pred_xy = P.Minimum()(pred_xy, 1)
+
+        return pred_xy, pred_label
+
 if __name__ == "__main__":
     backbone = shuffleNet()
     a = time.time()
@@ -658,12 +903,20 @@ if __name__ == "__main__":
     # backboneII = ShuffleNetV2II()
     x = Tensor(np.random.randint(0, 255, (1, 3, 320, 320)), mstype.float32)
     # outs = backbone(x)
-    outs_III = backbone(x)
+    # outs_III = backbone(x)
     # outs_II = backboneII(x)
-    nanodet = NanoDetII(backbone, config)
-    out = nanodet(x)
+    # nanodet = NanoDetII(backbone, config)
+    # out = nanodet(x)
+    # net = NanoDetWithLossCell(nanodet, config)
+    #
+    nanodet = NanoDetIII(backbone,config)
     net = NanoDetWithLossCell(nanodet, config)
+    # outs_III = nanodet(outs_III)
 
+    # for item in net.parameters_and_names():
+    #     print(item[0])
+    # print("!!")
+    # pass
 
     class GeneratDefaultGridCellsII:
         def __init__(self):
@@ -892,9 +1145,9 @@ if __name__ == "__main__":
         return inter / union
 
 
-    boxes = np.array([[50, 70, 200, 200, 32], [40, 90, 170, 100, 0]], np.float32)
-    boxes[:, [0, 2]] = boxes[:, [0, 2]] / 320
-    boxes[:, [1, 3]] = boxes[:, [1, 3]] / 320
+    boxes = np.array([[200, 70, 400, 200, 32], [40, 90, 570, 100, 0],[100, 90, 570, 320, 8],[40, 90, 50, 120, 5],[20, 30, 25, 35, 4]], np.float32)
+    boxes[..., [0, 2]] = boxes[..., [0, 2]] / 320
+    boxes[..., [1, 3]] = boxes[..., [1, 3]] / 320
     # boxes = np.array([[50, 70, 200, 200, 32], [40, 90, 170, 100, 1]])
     pos_inds, pos_grid_cell_center, pos_decode_bbox_targets, target_corners, assign_labels = nanodet_bboxes_encode(
         boxes)

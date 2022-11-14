@@ -1,0 +1,51 @@
+# [No.1] construct_wrapper.11
+# In file D:\Anaconda3\envs\mindspore\lib\site-packages\mindspore\nn\layer\basic.py(917)/    def construct(self, x, size=None, scale_factor=None, align_corners=False):/
+funcgraph fg_11(
+        %para1 : Tensor(F32)[1, 3, 320, 320]    # x
+        , %para2 : NoneType    # size
+        , %para3 : F32    # scale_factor
+        , %para4 : Bool    # align_corners
+    ) {
+
+#------------------------> 0
+    %1 = FuncGraph::fg_13(%para1, %para2, %para3, %para4)    #(Tensor(F32)[1, 3, 320, 320], NoneType, F32, Bool)    # fg_13=construct.13 #scope: Default
+#[CNode]14
+    Primitive::Return{prim_type=1}(%1)    #(Undefined) #scope: Default
+      # In file D:\Anaconda3\envs\mindspore\lib\site-packages\mindspore\nn\layer\basic.py(920)/        return resize_bilinear(x)/#[CNode]15
+}
+# order:
+#   1: construct_wrapper.11:[CNode]14{[0]: ValueNode<FuncGraph> construct.13, [1]: x, [2]: size, [3]: scale_factor, [4]: align_corners}
+#   2: construct_wrapper.11:[CNode]15{[0]: ValueNode<Primitive> Return, [1]: [CNode]14}
+
+
+# [No.2] construct.12
+# In file D:\Anaconda3\envs\mindspore\lib\site-packages\mindspore\nn\layer\basic.py(917)/    def construct(self, x, size=None, scale_factor=None, align_corners=False):/
+funcgraph fg_12(
+        %para5 : Tensor(F32)[1, 3, 320, 320]    # x
+        , %para6 : NoneType    # size
+        , %para7 : F32    # scale_factor
+        , %para8 : Bool    # align_corners
+    ) {
+    %1 : Tuple[I64*4] = Primitive::getattr{prim_type=1}(%para5, "shape")    #(Tensor(F32)[1, 3, 320, 320], String) #scope: Default
+      # In file D:\Anaconda3\envs\mindspore\lib\site-packages\mindspore\nn\layer\basic.py(918)/        shape = bilinear(x.shape, size, scale_factor, align_corners, self.cls_name)/#[CNode]16
+
+#------------------------> 1
+    %2 = DoSignaturePrimitive::S-Prim-bilinear{prim_type=1}(%1, %para6, %para7, %para8, "ResizeBilinear")    #(Tuple[I64*4], NoneType, F32, Bool, String) #scope: Default
+      # In file D:\Anaconda3\envs\mindspore\lib\site-packages\mindspore\nn\layer\basic.py(918)/        shape = bilinear(x.shape, size, scale_factor, align_corners, self.cls_name)/#shape
+    %3 = ClassType(%2, %para8, Bool(0))    #(Undefined, Bool, Undefined) #scope: Default
+      # In file D:\Anaconda3\envs\mindspore\lib\site-packages\mindspore\nn\layer\basic.py(919)/        resize_bilinear = P.ResizeBilinear(shape, align_corners, self.half_pixel_centers)/#resize_bilinear
+    %4 = %3(%para5)    #(Tensor(F32)[1, 3, 320, 320]) #scope: Default
+      # In file D:\Anaconda3\envs\mindspore\lib\site-packages\mindspore\nn\layer\basic.py(920)/        return resize_bilinear(x)/#[CNode]17
+    Primitive::Return{prim_type=1}(%4)    #(Undefined) #scope: Default
+      # In file D:\Anaconda3\envs\mindspore\lib\site-packages\mindspore\nn\layer\basic.py(920)/        return resize_bilinear(x)/#[CNode]18
+}
+# order:
+#   1: construct.12:[CNode]16{[0]: ValueNode<Primitive> getattr, [1]: x, [2]: ValueNode<StringImm> shape}
+#   2: construct.12:shape{[0]: ValueNode<DoSignaturePrimitive> S-Prim-bilinear, [1]: [CNode]16, [2]: size, [3]: scale_factor, [4]: align_corners, [5]: ValueNode<StringImm> ResizeBilinear}
+#   3: construct.12:resize_bilinear{[0]: ValueNode<ClassType> class 'mindspore.ops.operations.nn_ops.ResizeBilinear', [1]: shape, [2]: align_corners, [3]: ValueNode<BoolImm> false}
+#   4: construct.12:[CNode]17{[0]: resize_bilinear, [1]: x}
+#   5: construct.12:[CNode]18{[0]: ValueNode<Primitive> Return, [1]: [CNode]17}
+
+
+#===============================================================================
+# num of function graphs in stack: 2/3 (Ignored 1 internal frames).

@@ -19,4 +19,4 @@ from src.dataset import create_mindrecord
 from src.model_utils.config import config
 
 if __name__ == "__main__":
-    mindrecord_file = create_mindrecord(config.create_dataset, config.prefix, False)
+    mindrecord_file = create_mindrecord(config.create_dataset, config.prefix, config.is_training)

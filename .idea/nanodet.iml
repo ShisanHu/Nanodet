@@ -6,6 +6,10 @@
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module" module-name="retinanet" />
     <orderEntry type="module" module-name="nanodet-Final" />
+    <orderEntry type="module" module-name="shufflenetv2" />
+    <orderEntry type="module" module-name="py-nanodet" />
+    <orderEntry type="module" module-name="models" />
+    <orderEntry type="module" module-name="yolov5" />
   </component>
   <component name="PackageRequirementsSettings">
     <option name="requirementsPath" value="D:\VSCoding\Nanodet\requirements.txt" />
