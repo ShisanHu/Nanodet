@@ -1,6 +1,7 @@
 import mindspore.common.dtype as mstype
 import mindspore as ms
 import mindspore.nn as nn
+import mindspore.numpy as mnp
 from mindspore import context, Tensor
 from mindspore.ops import operations as P
 from mindspore.ops import functional as F
@@ -10,7 +11,6 @@ from mindspore.communication.management import get_group_size
 from mindspore.context import ParallelMode
 from mindspore import Parameter
 from src.model_utils.config import config
-
 
 class DepthwiseConvModule(nn.Cell):
     def __init__(
@@ -80,8 +80,12 @@ class Integral(nn.Cell):
         self.matmul = P.MatMul(transpose_b=True)
 
     def construct(self, x):
-        x = self.softmax(x.reshape(-1, 8))
-        x = self.matmul(x, self.linspace).reshape(-1, 4)
+        x_shape = self.shape(x)
+        x = self.reshape(x, (-1, 8))
+        x = self.softmax(x)
+        x = self.matmul(x, self.linspace)
+        out_shape = x_shape[:-1] + (4,)
+        x = self.reshape(x,out_shape)
         return x
 
 class Distance2bbox(nn.Cell):
@@ -508,6 +512,7 @@ class NanoDetWithLossCellII(nn.Cell):
     # def construct(self, x, gt_meta):
     def construct(self, x):
         cls_scores, bbox_preds = self.network(x)
+
         return cls_scores, bbox_preds
 
 
@@ -548,9 +553,34 @@ class TrainingWrapper(nn.Cell):
         self.optimizer(grads)
         return loss
 
+class NanodetInferWithDecoder(nn.Cell):
+    def __init__(self, network, center_priors, config):
+        super(NanodetInferWithDecoder, self).__init__()
+        self.network = network
+        self.distance2bbox = Distance2bbox(config.img_shape)
+        self.distribution_project = Integral()
+        self.center_priors = center_priors
+        self.sigmoid = P.Sigmoid()
+        self.expandDim = P.ExpandDims()
+        self.tile = P.Tile()
+        self.shape = P.Shape()
+
+    def construct(self, x):
+        x_shape = self.shape(x)
+        default_priors = self.expandDim(self.center_priors, 0)
+        cls_preds, reg_preds = self.network(x)
+        dis_preds = self.distribution_project(reg_preds) * self.tile(self.expandDim(default_priors[..., 2], -1), (1, 1, 4))
+        bboxes = self.distance2bbox(default_priors[..., :2], dis_preds)
+        scores = self.sigmoid(cls_preds)
+        bboxes = self.tile(self.expandDim(bboxes, -2), (1, 1, 80, 1))
+        return bboxes, scores
+
+
+
 if __name__ == "__main__":
     from mindspore.train.serialization import load_checkpoint, load_param_into_net
     import cv2 as cv
+    import numpy as np
 
     ms.set_context(mode=ms.PYNATIVE_MODE, device_target="CPU")
     img = cv.imread('../000000007088.jpg')
@@ -564,7 +594,10 @@ if __name__ == "__main__":
     backbone = shuffleNet()
     nanodet = NanoDet(backbone,config)
     net = NanoDetWithLossCellII(nanodet)
+    center_priors = Tensor(np.random.rand(2100,4),mstype.float32)
 
+    infor = NanodetInferWithDecoder(nanodet, center_priors, config)
+    infor(img)
     param_dict = load_checkpoint('../checkpoint.ckpt')
     # net = NanoDet(backbone, config)
     #
@@ -578,7 +611,8 @@ if __name__ == "__main__":
     #     print(item[1])
     net.set_train(False)
     cls_scores, bbox_preds = net(img)
-
+    # infor = NanodetInferWithDecoder(net, config)
+    # infor(img)
     topk = P.TopK()
     integral = Integral()
     _, ind = topk(cls_scores,1)

@@ -20,42 +20,21 @@ import itertools as it
 import numpy as np
 from src.model_utils.config import config
 
-# class GeneratDefaultGridCells:
-#     def __init__(self):
-#         # feature_size = [[40,40],[20,20], [10,10]]
-#         # steps = [8, 16, 32]
-#         fk = config.img_shape[0] / np.array(config.strides)
-#         feature_size = np.array(config.feature_size)
-#         scales = np.array(config.scales)
-#         strides = np.array(config.strides)
-#         anchor_size = np.array(config.anchor_size)
-#         self.default_multi_level_grid_cells = []
-#         # config.feature_size = [40, 20, 10]
-#         for idex, feature_size in enumerate(config.feature_size):
-#             base_size = anchor_size[idex] / config.img_shape[0]
-#             size = base_size * scales[idex]
-#             all_size = []
-#             for aspect_ratio in config.aspect_ratios:
-#                 w, h = size * math.sqrt(aspect_ratio), size / math.sqrt(aspect_ratio)
-#                 all_size.append((h, w))
-#
-#             stride = strides[idex]
-#             h, w = feature_size, feature_size
-#             x_range = (np.arange(w)+0.5) * stride
-#             y_range = (np.arange(h)+0.5) * stride
-#             y_feat, x_feat = np.meshgrid(x_range, y_range)
-#             y_feat, x_feat = y_feat.flatten(), x_feat.flatten()
-#             grid_cells = np.stack(
-#                 [
-#                     x_feat - 0.5 * stride,
-#                     y_feat - 0.5 * stride,
-#                     x_feat + 0.5 * stride,
-#                     y_feat + 0.5 * stride
-#                 ],
-#                 axis=-1
-#             )
-#
-#             self.default_multi_level_grid_cells.append(grid_cells)
+class GeneratDefaultGridCells:
+    def __init__(self):
+        # feature_size = [[40,40],[20,20], [10,10]]
+        # steps = [8, 16, 32]
+        self.center_priors = []
+        anchor_size = np.array(config.anchor_size)
+        for i, feature_size in enumerate(config.feature_size):
+            w, h = anchor_size[i], anchor_size[i]
+            for i, j in it.product(range(feature_size), repeat=2):
+                cx, cy = (j + 0.5) * anchor_size[i],(i + 0.5) * anchor_size[i]
+                self.center_priors.append([cy, cx, h, w])
+
+        self.center_priors = np.array(self.center_priors, dtype='float32')
+
+center_priors = GeneratDefaultGridCells().center_priors
 
 class GeneratDefaultGridCellsII:
     def __init__(self):
