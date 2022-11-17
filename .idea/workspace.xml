@@ -5002,9 +5002,17 @@
       <change afterPath="$PROJECT_DIR$/../models/official/cv/retinanet/cocodataset/val2017/000000581482.jpg" afterDir="false" />
       <change afterPath="$PROJECT_DIR$/../models/official/cv/retinanet/cocodataset/val2017/000000581615.jpg" afterDir="false" />
       <change afterPath="$PROJECT_DIR$/../models/official/cv/retinanet/cocodataset/val2017/000000581781.jpg" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/nanodet.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/nanodet.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/eval.py" beforeDir="false" afterPath="$PROJECT_DIR$/eval.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/msTest.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/msTest.ipynb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/new/ms.txt" beforeDir="false" afterPath="$PROJECT_DIR$/new/ms.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/new/pytorch.txt" beforeDir="false" afterPath="$PROJECT_DIR$/new/pytorch.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/new/shufflenetv2.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/new/shufflenetv2.ipynb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/nanodet.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/nanodet.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../models/official/cv/retinanet/config/default_config.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/../models/official/cv/retinanet/config/default_config.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../models/official/cv/retinanet/create_data.py" beforeDir="false" afterPath="$PROJECT_DIR$/../models/official/cv/retinanet/create_data.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../models/official/cv/retinanet/eval.py" beforeDir="false" afterPath="$PROJECT_DIR$/../models/official/cv/retinanet/eval.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../models/official/cv/retinanet/postprocess.py" beforeDir="false" afterPath="$PROJECT_DIR$/../models/official/cv/retinanet/postprocess.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../models/official/cv/retinanet/src/box_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/../models/official/cv/retinanet/src/box_utils.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../models/official/cv/retinanet/src/dataset.py" beforeDir="false" afterPath="$PROJECT_DIR$/../models/official/cv/retinanet/src/dataset.py" afterDir="false" />
@@ -5014,7 +5022,9 @@
       <change beforePath="$PROJECT_DIR$/../models/official/cv/shufflenetv2/src/shufflenetv2.py" beforeDir="false" afterPath="$PROJECT_DIR$/../models/official/cv/shufflenetv2/src/shufflenetv2.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../models/official/lite/image_segmentation/gradle/wrapper/gradle-wrapper.properties" beforeDir="false" afterPath="$PROJECT_DIR$/../models/official/lite/image_segmentation/gradle/wrapper/gradle-wrapper.properties" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../py-nanodet/nanodet/model/backbone/shufflenetv2.py" beforeDir="false" afterPath="$PROJECT_DIR$/../py-nanodet/nanodet/model/backbone/shufflenetv2.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../py-nanodet/nanodet/model/head/gfl_head.py" beforeDir="false" afterPath="$PROJECT_DIR$/../py-nanodet/nanodet/model/head/gfl_head.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../py-nanodet/nanodet/model/module/init_weights.py" beforeDir="false" afterPath="$PROJECT_DIR$/../py-nanodet/nanodet/model/module/init_weights.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../py-nanodet/nanodet/model/module/nms.py" beforeDir="false" afterPath="$PROJECT_DIR$/../py-nanodet/nanodet/model/module/nms.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../py-nanodet/tests/test_models/test_backbone/test_shufflenetv2.py" beforeDir="false" afterPath="$PROJECT_DIR$/../py-nanodet/tests/test_models/test_backbone/test_shufflenetv2.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../py-nanodet/tests/test_models/test_fpn/test_pan.py" beforeDir="false" afterPath="$PROJECT_DIR$/../py-nanodet/tests/test_models/test_fpn/test_pan.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../py-nanodet/tests/test_models/test_head/test_gfl_head.py" beforeDir="false" afterPath="$PROJECT_DIR$/../py-nanodet/tests/test_models/test_head/test_gfl_head.py" afterDir="false" />
@@ -5065,21 +5075,46 @@
     "RunOnceActivity.OpenProjectViewOnStart": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "WebServerToolWindowFactoryState": "false",
-    "last_opened_file_path": "D:/VSCoding/Nanodet/new/pytorch.txt",
-    "settings.editor.selected.configurable": "debugger.dataViews.python.type.renderers",
-    "two.files.diff.last.used.file": "D:/VSCoding/Nanodet/new/pytorch.txt"
+    "last_opened_file_path": "D:/VSCoding/Nanodet",
+    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable",
+    "two.files.diff.last.used.file": "D:/VSCoding/Nanodet/new/torch_ckpt_value.txt"
   }
 }]]></component>
   <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="D:\VSCoding\py-nanodet\tests\test_models\test_backbone" />
+    </key>
     <key name="MoveFile.RECENT_KEYS">
       <recent name="D:\VSCoding\Nanodet" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.nanodet">
+  <component name="RunManager" selected="Python.evaluator">
+    <configuration name="evaluator" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="nanodet" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/evaluator.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="true" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
     <configuration name="nanodet" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="nanodet" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
       <option name="SDK_HOME" value="" />
       <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/src" />
       <option name="IS_MODULE_SDK" value="true" />
@@ -5095,61 +5130,17 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="pan (1)" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
-      <module name="nanodet" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/new" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/new/pan.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
-    <configuration name="retinanet" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
-      <module name="retinanet" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../models/official/cv/retinanet/src" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/../models/official/cv/retinanet/src/retinanet.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
-    <configuration name="shufflenetv2" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="nanodetII" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="nanodet" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
       <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/new" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/src" />
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/new/shufflenetv2.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/src/nanodetII.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="true" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -5158,29 +5149,34 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="pytest for test_gfl_head.test_gfl_head_loss" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
-      <module name="py-nanodet" />
+    <configuration name="torch2mindspore" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="nanodet" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
       <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../py-nanodet/tests/test_models/test_head" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-      <option name="_new_keywords" value="&quot;&quot;" />
-      <option name="_new_parameters" value="&quot;&quot;" />
-      <option name="_new_additionalArguments" value="&quot;&quot;" />
-      <option name="_new_target" value="&quot;test_gfl_head.test_gfl_head_loss&quot;" />
-      <option name="_new_targetType" value="&quot;PYTHON&quot;" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/torch2mindspore.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="pytest for test_pan.test_pan" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
+    <configuration name="pytest for test_shufflenetv2.test_shufflenetv2" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
       <module name="py-nanodet" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
       <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../py-nanodet/tests/test_models/test_fpn" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../py-nanodet/tests/test_models/test_backbone" />
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
@@ -5188,24 +5184,24 @@
       <option name="_new_keywords" value="&quot;&quot;" />
       <option name="_new_parameters" value="&quot;&quot;" />
       <option name="_new_additionalArguments" value="&quot;&quot;" />
-      <option name="_new_target" value="&quot;test_pan.test_pan&quot;" />
+      <option name="_new_target" value="&quot;test_shufflenetv2.test_shufflenetv2&quot;" />
       <option name="_new_targetType" value="&quot;PYTHON&quot;" />
       <method v="2" />
     </configuration>
     <list>
+      <item itemvalue="Python.evaluator" />
+      <item itemvalue="Python.torch2mindspore" />
+      <item itemvalue="Python.nanodetII" />
       <item itemvalue="Python.nanodet" />
-      <item itemvalue="Python.pan (1)" />
-      <item itemvalue="Python.retinanet" />
-      <item itemvalue="Python tests.pytest for test_gfl_head.test_gfl_head_loss" />
-      <item itemvalue="Python tests.pytest for test_pan.test_pan" />
+      <item itemvalue="Python tests.pytest for test_shufflenetv2.test_shufflenetv2" />
     </list>
     <recent_temporary>
       <list>
+        <item itemvalue="Python.evaluator" />
+        <item itemvalue="Python.nanodetII" />
+        <item itemvalue="Python tests.pytest for test_shufflenetv2.test_shufflenetv2" />
+        <item itemvalue="Python.torch2mindspore" />
         <item itemvalue="Python.nanodet" />
-        <item itemvalue="Python tests.pytest for test_gfl_head.test_gfl_head_loss" />
-        <item itemvalue="Python tests.pytest for test_pan.test_pan" />
-        <item itemvalue="Python.pan (1)" />
-        <item itemvalue="Python.retinanet" />
       </list>
     </recent_temporary>
   </component>
@@ -5231,7 +5227,10 @@
       <workItem from="1668234999086" duration="619000" />
       <workItem from="1668320490730" duration="13087000" />
       <workItem from="1668338031400" duration="12429000" />
-      <workItem from="1668389168090" duration="18122000" />
+      <workItem from="1668389168090" duration="25921000" />
+      <workItem from="1668476839540" duration="8911000" />
+      <workItem from="1668501327914" duration="27751000" />
+      <workItem from="1668581296613" duration="20921000" />
     </task>
     <servers />
   </component>
@@ -5272,13 +5271,38 @@
       <breakpoints>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/../py-nanodet/tests/test_models/test_backbone/test_shufflenetv2.py</url>
-          <line>56</line>
+          <line>109</line>
           <option name="timeStamp" value="10" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/src/nanodet.py</url>
-          <line>917</line>
+          <line>938</line>
           <option name="timeStamp" value="13" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/src/nanodet.py</url>
+          <line>632</line>
+          <option name="timeStamp" value="25" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/../py-nanodet/nanodet/model/head/gfl_head.py</url>
+          <line>802</line>
+          <option name="timeStamp" value="40" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/../py-nanodet/nanodet/model/backbone/shufflenetv2.py</url>
+          <line>180</line>
+          <option name="timeStamp" value="58" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/src/nanodetII.py</url>
+          <line>563</line>
+          <option name="timeStamp" value="66" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/evaluator.py</url>
+          <line>65</line>
+          <option name="timeStamp" value="72" />
         </line-breakpoint>
       </breakpoints>
       <default-breakpoints>
@@ -5297,15 +5321,19 @@
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/Nanodet$shufflenetv2__1_.coverage" NAME="shufflenetv2 Coverage Results" MODIFIED="1668328319969" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/new" />
-    <SUITE FILE_PATH="coverage/Nanodet$PAN.coverage" NAME="PAN Coverage Results" MODIFIED="1668339340160" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/new" />
+    <SUITE FILE_PATH="coverage/Nanodet$pytest_for_test_coco_detection_test_coco_detection.coverage" NAME="pytest for test_coco_detection.test_coco_detection Coverage Results" MODIFIED="1668515592164" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/../py-nanodet/tests/test_evaluator" />
     <SUITE FILE_PATH="coverage/Nanodet$pytest_for_test_gfl_head_test_gfl_head_loss.coverage" NAME="pytest for test_gfl_head.test_gfl_head_loss Coverage Results" MODIFIED="1668411582328" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/../py-nanodet/tests/test_models/test_head" />
-    <SUITE FILE_PATH="coverage/Nanodet$pytest_for_test_pan_test_pan.coverage" NAME="pytest for test_pan.test_pan Coverage Results" MODIFIED="1668411448767" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/../py-nanodet/tests/test_models/test_fpn" />
     <SUITE FILE_PATH="coverage/Nanodet$shufflenetv2.coverage" NAME="shufflenetv2 Coverage Results" MODIFIED="1668222937363" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/../py-nanodet/nanodet/model/backbone" />
-    <SUITE FILE_PATH="coverage/Nanodet$pytest_for_test_shufflenetv2_test_shufflenetv2.coverage" NAME="pytest for test_shufflenetv2.test_shufflenetv2 Coverage Results" MODIFIED="1668328310925" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/../py-nanodet/tests/test_models/test_backbone" />
+    <SUITE FILE_PATH="coverage/Nanodet$pytest_for_test_shufflenetv2_test_shufflenetv2.coverage" NAME="pytest for test_shufflenetv2.test_shufflenetv2 Coverage Results" MODIFIED="1668581162744" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/../py-nanodet/tests/test_models/test_backbone" />
+    <SUITE FILE_PATH="coverage/Nanodet$torch2mindspore.coverage" NAME="torch2mindspore Coverage Results" MODIFIED="1668569777133" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/Nanodet$pan__1_.coverage" NAME="pan (1) Coverage Results" MODIFIED="1668411116988" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/new" />
+    <SUITE FILE_PATH="coverage/Nanodet$evaluator.coverage" NAME="evaluator Coverage Results" MODIFIED="1668609816554" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/Nanodet$PAN.coverage" NAME="PAN Coverage Results" MODIFIED="1668339340160" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/new" />
+    <SUITE FILE_PATH="coverage/Nanodet$nanodetII.coverage" NAME="nanodetII Coverage Results" MODIFIED="1668583916526" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
+    <SUITE FILE_PATH="coverage/Nanodet$pytest_for_test_pan_test_pan.coverage" NAME="pytest for test_pan.test_pan Coverage Results" MODIFIED="1668411448767" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/../py-nanodet/tests/test_models/test_fpn" />
     <SUITE FILE_PATH="coverage/Nanodet$train.coverage" NAME="train Coverage Results" MODIFIED="1666950252720" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/../nanodet-Finalii" />
     <SUITE FILE_PATH="coverage/Nanodet$yuketang.coverage" NAME="yuketang Coverage Results" MODIFIED="1666874649929" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/Nanodet$retinanet.coverage" NAME="retinanet Coverage Results" MODIFIED="1668354314886" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/../models/official/cv/retinanet/src" />
-    <SUITE FILE_PATH="coverage/Nanodet$pan__1_.coverage" NAME="pan (1) Coverage Results" MODIFIED="1668411116988" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/new" />
-    <SUITE FILE_PATH="coverage/Nanodet$nanodet.coverage" NAME="nanodet Coverage Results" MODIFIED="1668427505775" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
+    <SUITE FILE_PATH="coverage/Nanodet$nanodet.coverage" NAME="nanodet Coverage Results" MODIFIED="1668431338573" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
   </component>
 </project>

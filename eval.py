@@ -161,9 +161,11 @@ def retinanet_eval():
 
     batch_size = 1
     ds = create_nanodet_dataset(mindrecord_file, batch_size=batch_size, repeat_num=1, is_training=False)
+
     backbone = shuffleNet()
     net = NanoDetII(backbone, config)
     net = NanodetInferWithDecoder(net, Tensor(default_multi_level_grid_cells_ltrb), config)
+
     print("Load Checkpoint!")
     param_dict = load_checkpoint(config.checkpoint_path)
     net.init_parameters_data()

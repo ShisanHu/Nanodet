@@ -155,6 +155,20 @@ class IntegralII(nn.Cell):
         x = self.dense(x).reshape(*shape[:-1], 4)
         return x
 
+class IntegralIII(nn.Cell):
+    def __init__(self):
+        super(IntegralIII, self).__init__()
+        self.softmax = P.Softmax(axis=-1)
+        self.reshape = P.Reshape()
+        self.shape = P.Shape()
+        self.linspace = Tensor([[0, 1, 2, 3, 4, 5, 6, 7]], mstype.float32)
+        self.matmul = P.MatMul(transpose_b=True)
+
+    def construct(self, x):
+        x = self.softmax(x.reshape(-1, 8))
+        x = self.matmul(x, self.linspace).reshape(-1, 4)
+        return x
+
 class Distance2bbox(nn.Cell):
     def __init__(self, max_shape=None):
         super(Distance2bbox, self).__init__()
@@ -446,33 +460,45 @@ class ShuffleNetV2III(nn.Cell):
             nn.ReLU(),
             # nn.LeakyReLU(),
         ])
-        input_channels = output_channels
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, pad_mode='same')
-        stage_names = ["stage{}".format(i) for i in [2, 3, 4]]
-        for name, repeats, output_channels in zip(
-                stage_names, self.stage_repeats, self._stage_out_channels[1:]
-        ):
-            seq = [
-                ShuffleV2BlockIII(input_channels, output_channels, 2)
-            ]
-            for i in range(repeats - 1):
-                seq.append(
-                    ShuffleV2BlockIII(output_channels, output_channels, 1)
-                )
-            setattr(self, name, nn.SequentialCell(*seq))
-            input_channels = output_channels
-        output_channels = self._stage_out_channels[-1]
+        input_channels = output_channels
+        output_channels = self._stage_out_channels[1]
+        self.stage2 = nn.SequentialCell([
+            ShuffleV2BlockIII(input_channels, output_channels, 2),
+            ShuffleV2BlockIII(output_channels, output_channels, 1),
+            ShuffleV2BlockIII(output_channels, output_channels, 1),
+            ShuffleV2BlockIII(output_channels, output_channels, 1),
+        ])
+        input_channels = output_channels
+        output_channels = self._stage_out_channels[2]
+        self.stage3 = nn.SequentialCell([
+            ShuffleV2BlockIII(input_channels, output_channels, 2),
+            ShuffleV2BlockIII(output_channels, output_channels, 1),
+            ShuffleV2BlockIII(output_channels, output_channels, 1),
+            ShuffleV2BlockIII(output_channels, output_channels, 1),
+            ShuffleV2BlockIII(output_channels, output_channels, 1),
+            ShuffleV2BlockIII(output_channels, output_channels, 1),
+            ShuffleV2BlockIII(output_channels, output_channels, 1),
+            ShuffleV2BlockIII(output_channels, output_channels, 1),
+        ])
+        input_channels = output_channels
+        output_channels = self._stage_out_channels[3]
+        self.stage4 = nn.SequentialCell([
+            ShuffleV2BlockIII(input_channels, output_channels, 2),
+            ShuffleV2BlockIII(output_channels, output_channels, 1),
+            ShuffleV2BlockIII(output_channels, output_channels, 1),
+            ShuffleV2BlockIII(output_channels, output_channels, 1),
+        ])
 
     def construct(self, x):
         x = self.conv1(x)
         x = self.maxpool(x)
-        output = []
-        for i in range(2, 5):
-            stage = getattr(self, "stage{}".format(i))
-            x = stage(x)
-            if i in self.out_stages:
-                output.append(x)
-        return tuple(output)
+
+        C2 = self.stage2(x)
+        C3 = self.stage3(C2)
+        C4 = self.stage4(C3)
+
+        return tuple([C2,C3,C4])
 
 def shuffleNet(model_size='1.0x'):
     return ShuffleNetV2III(model_size=model_size)
@@ -514,10 +540,6 @@ class NanoDetII(nn.Cell):
         P3 = P3 + self.P_downSample2(P2)
         P4 = P4 + self.P_downSample1(P3)
 
-        # P2 = self.P2_2(P2)
-        # P3 = self.P3_2(P3)
-        # P4 = self.P4_2(P4)
-
         multi_feature = (P2, P3, P4)
         pred_cls, pred_reg = self.multiPred(multi_feature)
         return pred_cls, pred_reg
@@ -533,11 +555,15 @@ class NanoDetIII(nn.Cell):
         self.lateral_convs.append(nn.Conv2d(464, 96, kernel_size=1, stride=1, pad_mode='same', has_bias=True))
         self.lateral_convs.append(nn.Conv2d(232, 96, kernel_size=1, stride=1, pad_mode='same', has_bias=True))
         self.lateral_convs.append(nn.Conv2d(116, 96, kernel_size=1, stride=1, pad_mode='same', has_bias=True))
+
+        # self.lateral_convs0 = nn.Conv2d(464, 96, kernel_size=1, stride=1, pad_mode='same', has_bias=True)
+        # self.lateral_convs1 = nn.Conv2d(232, 96, kernel_size=1, stride=1, pad_mode='same', has_bias=True)
+        # self.lateral_convs2 = nn.Conv2d(116, 96, kernel_size=1, stride=1, pad_mode='same', has_bias=True)
+
         self.P_upSample1 = P.ResizeBilinear((feature_size[1],feature_size[1]))
         self.P_upSample2 = P.ResizeBilinear((feature_size[0],feature_size[0]))
         self.P_downSample1 = P.ResizeBilinear((feature_size[1],feature_size[1]))
         self.P_downSample2 = P.ResizeBilinear((feature_size[2],feature_size[2]))
-        # self.multiPred = MultiPred(config)
         self.reshape = P.Reshape()
         self.concat = P.Concat(axis=2)
         self.transpose = P.Transpose()
@@ -557,16 +583,6 @@ class NanoDetIII(nn.Cell):
                     padding=1,
                 )
             )
-            # reg_convs.append(
-            #     self.ConvModule(
-            #         in_channels=96,
-            #         out_channels=96,
-            #         kernel_size=3,
-            #         stride=1,
-            #         padding=1,
-            #     )
-            # )
-        # return cls_convs, reg_convs
         return cls_convs
 
     def _make_layer(self):
@@ -602,12 +618,17 @@ class NanoDetIII(nn.Cell):
             )
 
     def construct(self, inputs):
-        C2, C3, C4 = self.backbone(x)
+        C2, C3, C4 = self.backbone(inputs)
 
         # 对齐通道
+        # P4 = self.lateral_convs0(C4)
+        # P3 = self.lateral_convs1(C3)
+        # P2 = self.lateral_convs2(C2)
+
         P4 = self.lateral_convs[0](C4)
         P3 = self.lateral_convs[1](C3)
         P2 = self.lateral_convs[2](C2)
+
         # top -> down
         P3 = self.P_upSample1(P4) + P3
         P2 = self.P_upSample2(P3) + P2
@@ -794,7 +815,7 @@ class NanoDetWithLossCell(nn.Cell):
         self.giou_loss = GIouLossII()
         self.qfl_loss = QualityFocalLossIII()
         self.dfs_loss = DistributionFocalLossII()
-        self.integral = IntegralII(config)
+        self.integral = IntegralIII()
         self.zeros = P.Zeros()
         self.distance2bbox = Distance2bbox()
         self.reshape = P.Reshape()
