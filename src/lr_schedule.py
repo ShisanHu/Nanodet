@@ -17,6 +17,43 @@
 
 import math
 import numpy as np
+from collections import Counter
+
+
+def linear_warmup_lr(current_step, warmup_steps, base_lr, init_lr):
+    """Linear learning rate."""
+    lr_inc = (float(base_lr) - float(init_lr)) / float(warmup_steps)
+    lr = float(init_lr) + lr_inc * current_step
+    return lr
+
+def warmup_step_lr(lr, lr_epochs, steps_per_epoch, warmup_epochs, max_epoch, gamma=0.1):
+    """Warmup step learning rate."""
+    base_lr = lr
+    warmup_init_lr = 0
+    total_steps = int(max_epoch * steps_per_epoch)
+    warmup_steps = int(warmup_epochs * steps_per_epoch)
+    milestones = lr_epochs
+    milestones_steps = []
+    for milestone in milestones:
+        milestones_step = milestone * steps_per_epoch
+        milestones_steps.append(milestones_step)
+
+    lr_each_step = []
+    lr = base_lr
+    milestones_steps_counter = Counter(milestones_steps)
+    for i in range(total_steps):
+        if i < warmup_steps:
+            lr = linear_warmup_lr(i + 1, warmup_steps, base_lr, warmup_init_lr)
+        else:
+            lr = lr * gamma**milestones_steps_counter[i]
+        lr_each_step.append(lr)
+
+    return np.array(lr_each_step).astype(np.float32)
+
+
+def multi_step_lr(lr, milestones, steps_per_epoch, warmup_epochs, max_epoch, gamma=0.1):
+    return warmup_step_lr(lr, milestones, steps_per_epoch, warmup_epochs, max_epoch, gamma=gamma)
+
 
 
 def get_lr(global_step, lr_init, lr_end, lr_max, warmup_epochs1, warmup_epochs2,
@@ -43,6 +80,7 @@ def get_lr(global_step, lr_init, lr_end, lr_max, warmup_epochs1, warmup_epochs2,
     warmup_steps3 = warmup_steps2 + steps_per_epoch * warmup_epochs3
     warmup_steps4 = warmup_steps3 + steps_per_epoch * warmup_epochs4
     warmup_steps5 = warmup_steps4 + steps_per_epoch * warmup_epochs5
+
     for i in range(total_steps):
         if i < warmup_steps1:
             lr = lr_init*(warmup_steps1-i) / (warmup_steps1) + \
@@ -72,3 +110,13 @@ def get_lr(global_step, lr_init, lr_end, lr_max, warmup_epochs1, warmup_epochs2,
     learning_rate = lr_each_step[current_step:]
 
     return learning_rate
+
+
+def get_MultiStepLR(lr, milestones, steps_per_epoch, warmup_epochs, max_epoch, gamma):
+    return multi_step_lr(lr, milestones, steps_per_epoch, warmup_epochs, max_epoch, gamma)
+
+if __name__ == "__main__":
+    lr = get_MultiStepLR(0.14, [240, 260, 275], 100, 3, 280, 0.1)
+    print(lr.size)
+    for i in lr:
+        print(i)

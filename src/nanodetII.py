@@ -35,7 +35,8 @@ class DepthwiseConvModule(nn.Cell):
         self.pointwise = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1, padding=0, has_bias=False)
         self.dwnorm = nn.BatchNorm2d(in_channels)
         self.pwnorm = nn.BatchNorm2d(out_channels)
-        self.act = nn.ReLU()
+        # self.act = nn.ReLU()
+        self.act = nn.LeakyReLU(alpha=0.1)
         self.init_weights()
 
     def construct(self, x):
@@ -50,25 +51,6 @@ class DepthwiseConvModule(nn.Cell):
     def init_weights(self):
         pass
 
-
-class IntegralII(nn.Cell):
-    def __init__(self, config):
-        super(IntegralII, self).__init__()
-        self.reg_max = config.reg_max
-        self.softmax = P.Softmax(axis=-1)
-        self.start = Tensor(0, mstype.float32)
-        self.stop = Tensor(config.reg_max)
-        linspace = Tensor([0, 1, 2, 3, 4, 5, 6, 7], mstype.float32)
-        project = Parameter(default_input=linspace, name="project", requires_grad=False)
-        self.distribution_project = nn.Dense(8, 1, weight_init=project, has_bias=False)
-        self.reshape = P.Reshape()
-        self.shape = P.Shape()
-
-    def construct(self, x):
-        shape = self.shape(x)
-        x = self.softmax(x.reshape(*shape[:-1], 4, 8))
-        x = self.distribution_project(x).reshape(*shape[:-1], 4)
-        return x
 
 class Integral(nn.Cell):
     def __init__(self):
@@ -85,27 +67,37 @@ class Integral(nn.Cell):
         x = self.softmax(x)
         x = self.matmul(x, self.linspace)
         out_shape = x_shape[:-1] + (4,)
-        x = self.reshape(x,out_shape)
+        x = self.reshape(x, out_shape)
         return x
 
+
 class Distance2bbox(nn.Cell):
-    def __init__(self, max_shape=None):
+    def __init__(self):
         super(Distance2bbox, self).__init__()
-        self.max_shape = max_shape
         self.stack = P.Stack(-1)
 
     def construct(self, points, distance):
-        x1 = points[..., 0] - distance[..., 0]
-        y1 = points[..., 1] - distance[..., 1]
-        x2 = points[..., 0] + distance[..., 2]
-        y2 = points[..., 1] + distance[..., 3]
-        if self.max_shape is not None:
-            x1 = C.clip_by_value(x1, Tensor(0), Tensor(self.max_shape[0]))
-            y1 = C.clip_by_value(y1, Tensor(0), Tensor(self.max_shape[1]))
-            x2 = C.clip_by_value(x2, Tensor(0), Tensor(self.max_shape[0]))
-            y2 = C.clip_by_value(y2, Tensor(0), Tensor(self.max_shape[0]))
-        return self.stack([x1, y1, x2, y2])
+        y1 = points[..., 0] - distance[..., 1]
+        x1 = points[..., 1] - distance[..., 0]
+        y2 = points[..., 0] + distance[..., 3]
+        x2 = points[..., 1] + distance[..., 2]
+        return self.stack([y1, x1, y2, x2])
 
+class BBox2Distance(nn.Cell):
+    def __init__(self):
+        super(BBox2Distance, self).__init__()
+        self.stack = P.Stack(-1)
+
+    def construct(self, points, bbox):
+        left = points[..., 1] - bbox[..., 1]
+        top = points[..., 0] - bbox[..., 0]
+        right = bbox[..., 3] - points[..., 1]
+        bottom = bbox[..., 2] - points[..., 0]
+        left = C.clip_by_value(left, Tensor(0.0), Tensor(6.9))
+        top = C.clip_by_value(top, Tensor(0.0), Tensor(6.9))
+        right = C.clip_by_value(right, Tensor(0.0), Tensor(6.9))
+        bottom = C.clip_by_value(bottom, Tensor(0.0), Tensor(6.9))
+        return self.stack((left, top, right, bottom))
 
 class ShuffleV2Block(nn.Cell):
     def __init__(self, inp, oup, stride):
@@ -122,6 +114,7 @@ class ShuffleV2Block(nn.Cell):
             ])
         else:
             self.branch1 = nn.SequentialCell()
+
         self.branch2 = nn.SequentialCell([
             nn.Conv2d(
                 inp if (self.stride > 1) else branch_features,
@@ -204,7 +197,8 @@ class ShuffleNetV2(nn.Cell):
             # nn.LeakyReLU(),
         ])
 
-        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, pad_mode='same')
+        self.pad = nn.Pad(((0, 0), (0, 0), (1, 1), (1, 1)), "CONSTANT")
+        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, pad_mode='valid')
 
         input_channels = output_channels
         output_channels = _stage_out_channels[1]
@@ -237,6 +231,7 @@ class ShuffleNetV2(nn.Cell):
 
     def construct(self, x):
         x = self.conv1(x)
+        x = self.pad(x)
         x = self.maxpool(x)
         C2 = self.stage2(x)
         C3 = self.stage3(C2)
@@ -259,6 +254,10 @@ class NanoDet(nn.Cell):
         self.lateral_convs.append(nn.Conv2d(116, 96, kernel_size=1, stride=1, pad_mode='same', has_bias=True))
         self.lateral_convs.append(nn.Conv2d(232, 96, kernel_size=1, stride=1, pad_mode='same', has_bias=True))
         self.lateral_convs.append(nn.Conv2d(464, 96, kernel_size=1, stride=1, pad_mode='same', has_bias=True))
+        # self.P_upSample1 = P.ResizeBilinear((feature_size[1], feature_size[1]), half_pixel_centers=True)
+        # self.P_upSample2 = P.ResizeBilinear((feature_size[0], feature_size[0]), half_pixel_centers=True)
+        # self.P_downSample1 = P.ResizeBilinear((feature_size[1], feature_size[1]), half_pixel_centers=True)
+        # self.P_downSample2 = P.ResizeBilinear((feature_size[2], feature_size[2]), half_pixel_centers=True)
         self.P_upSample1 = P.ResizeBilinear((feature_size[1], feature_size[1]))
         self.P_upSample2 = P.ResizeBilinear((feature_size[0], feature_size[0]))
         self.P_downSample1 = P.ResizeBilinear((feature_size[1], feature_size[1]))
@@ -328,10 +327,10 @@ class NanoDet(nn.Cell):
         # down -> top
         P3 = self.P_downSample1(P2) + P3
         P4 = self.P_downSample2(P3) + P4
-        # s = self.cls_convs[0](P4)
-        P4 = self.cls_convs[2](P4)
-        P3 = self.cls_convs[1](P3)
+        # P2, P3, P4 = inputs
         P2 = self.cls_convs[0](P2)
+        P3 = self.cls_convs[1](P3)
+        P4 = self.cls_convs[2](P4)
 
         P4 = self.gfl_cls[2](P4)
         P3 = self.gfl_cls[1](P3)
@@ -343,179 +342,177 @@ class NanoDet(nn.Cell):
         preds = self.concat((P2, P3, P4))
         preds = self.transpose(preds, (0, 2, 1))
 
-        cls_convs = self.slice(preds, (0, 0, 0), (-1, -1, 80))
-        reg_convs = self.slice(preds, (0, 0, 80), (-1, -1, -1))
-        return cls_convs, reg_convs
+        cls_scores = self.slice(preds, (0, 0, 0), (-1, -1, 80))
+        bbox_preds = self.slice(preds, (0, 0, 80), (-1, -1, -1))
+        return cls_scores, bbox_preds
 
-class QualityFocalLossIII(nn.Cell):
-    def __init__(self, beta=2.0, loss_weight=1.0):
-        super(QualityFocalLossIII, self).__init__()
-        self.beta = beta
-        self.loss_weight = loss_weight
+class QualityFocalLoss(nn.Cell):
+    def __init__(self, beta=2.0):
+        super(QualityFocalLoss, self).__init__()
         self.sigmoid = P.Sigmoid()
+        self.sigmiod_cross_entropy = P.SigmoidCrossEntropyWithLogits()
         self.pow = P.Pow()
-        self.zeros = P.Zeros()
-        self.logicalAnd = P.LogicalAnd()
-        self.binary_cross_entropy_with_logits = nn.BCEWithLogitsLoss(reduction='none')
-        self.nonzero = P.MaskedSelect()
-        self.reshape = P.Reshape()
-        self.reduce_sum = P.ReduceSum()
+        self.abs = P.Abs()
+        self.onehot = P.OneHot()
+        self.on_value = Tensor(1.0, mstype.float32)
+        self.off_value = Tensor(0.0, mstype.float32)
+        self.tile = P.Tile()
+        self.expand_dims = P.ExpandDims()
+        self.beta = beta
 
-    def construct(self, pred: ms.Tensor, label, score, pos):
-        # label, score = target
-        pred_sigmoid = self.sigmoid(pred)
-        scale_factor = pred_sigmoid
-        zerolabel = self.zeros(pred.shape, ms.float32)
-        loss = self.binary_cross_entropy_with_logits(pred, zerolabel) * self.pow(scale_factor, self.beta)
-        pos_label = label[pos]
-        scale_factor = score[pos] - pred_sigmoid[pos, pos_label]
-        loss[pos, pos_label] = self.binary_cross_entropy_with_logits(pred[pos, pos_label], score[pos]) * self.pow(
-            scale_factor.abs(), self.beta)
-        loss = self.reduce_sum(loss, 1)
-        loss = loss * self.loss_weight
-        loss = loss / len(pos)
-        return loss
+    def construct(self, logits, label, score):
+        logits_sigmoid = self.sigmoid(logits)
+        label = self.onehot(label, F.shape(logits)[-1], self.on_value, self.off_value)
+        score = self.tile(self.expand_dims(score, -1), (1, 1, F.shape(logits)[-1]))
+        label = label * score
+        sigmiod_cross_entropy = self.sigmiod_cross_entropy(logits, label)
+        modulating_factor = self.pow(self.abs(label - logits_sigmoid), self.beta)
+        qfl_loss = sigmiod_cross_entropy * modulating_factor
+        return qfl_loss
 
-
-class DistributionFocalLossII(nn.Cell):
-    def __init__(self, loss_weight=0.25):
-        super(DistributionFocalLossII, self).__init__()
-        self.loss_weight = loss_weight
+class DistributionFocalLoss(nn.Cell):
+    def __init__(self):
+        super(DistributionFocalLoss, self).__init__()
+        # self.loss_weight = loss_weight
         self.cross_entropy = nn.SoftmaxCrossEntropyWithLogits(sparse=True, reduction='none')
         self.cast = P.Cast()
         self.reduce_sum = P.ReduceSum()
 
-    def construct(self, pred, label, pos):
-        dis_left = self.cast(label, ms.int32)
+    def construct(self, pred, label):
+        dis_left = self.cast(label, mstype.int32)
         dis_right = dis_left + 1
-        weight_left = self.cast(dis_right, ms.float32) - label
-        weight_right = label - self.cast(dis_left, ms.float32)
+        weight_left = self.cast(dis_right, mstype.float32) - label
+        weight_right = label - self.cast(dis_left, mstype.float32)
         dfl_loss = (
                 self.cross_entropy(pred, dis_left) * weight_left
                 + self.cross_entropy(pred, dis_right) * weight_right)
-        dfl_loss = dfl_loss * self.loss_weight
+        # dfl_loss = dfl_loss * self.loss_weight
         return dfl_loss
 
+class GIou(nn.Cell):
+    """Calculating giou"""
+    def __init__(self):
+        super(GIou, self).__init__()
+        self.cast = P.Cast()
+        self.reshape = P.Reshape()
+        self.min = P.Minimum()
+        self.max = P.Maximum()
+        self.concat = P.Concat(axis=1)
+        self.mean = P.ReduceMean()
+        self.div = P.RealDiv()
+        self.eps = 0.000001
 
-class GIouLossII(nn.Cell):
-    def __init__(self, eps=1e-6, reduction='mena', loss_weight=2.0):
-        super(GIouLossII, self).__init__()
-        self.reduction = reduction
-        self.loss_weight = loss_weight
-        self.maximum = P.Maximum()
-        self.minimum = P.Minimum()
-        self.eps = Tensor(eps, ms.float32)
-        self.value_zero = Tensor(0, ms.float32)
+    def construct(self, box_p, box_gt):
+        """construct method"""
+        box_p_area = (box_p[..., 2:3] - box_p[..., 0:1]) * (box_p[..., 3:4] - box_p[..., 1:2])
+        box_gt_area = (box_gt[..., 2:3] - box_gt[..., 0:1]) * (box_gt[..., 3:4] - box_gt[..., 1:2])
+        x_1 = self.max(box_p[..., 0:1], box_gt[..., 0:1])
+        x_2 = self.min(box_p[..., 2:3], box_gt[..., 2:3])
+        y_1 = self.max(box_p[..., 1:2], box_gt[..., 1:2])
+        y_2 = self.min(box_p[..., 3:4], box_gt[..., 3:4])
+        intersection = (y_2 - y_1) * (x_2 - x_1)
+        xc_1 = self.min(box_p[..., 0:1], box_gt[..., 0:1])
+        xc_2 = self.max(box_p[..., 2:3], box_gt[..., 2:3])
+        yc_1 = self.min(box_p[..., 1:2], box_gt[..., 1:2])
+        yc_2 = self.max(box_p[..., 3:4], box_gt[..., 3:4])
+        c_area = (xc_2 - xc_1) * (yc_2 - yc_1)
+        union = box_p_area + box_gt_area - intersection
+        union = union + self.eps
+        c_area = c_area + self.eps
+        iou = self.div(self.cast(intersection, ms.float32), self.cast(union, ms.float32))
+        res_mid0 = c_area - union
+        res_mid1 = self.div(self.cast(res_mid0, ms.float32), self.cast(c_area, ms.float32))
+        giou = iou - res_mid1
+        giou = 1 - giou
+        giou = C.clip_by_value(giou, -1.0, 1.0)
+        giou = giou.squeeze(-1)
+        return giou
 
-    def construct(self, boxes1, boxes2):
-        boxes1Area = (boxes1[..., 2] - boxes1[..., 0]) * (boxes1[..., 3] - boxes1[..., 1])
-        boxes2Area = (boxes2[..., 2] - boxes2[..., 0]) * (boxes2[..., 3] - boxes2[..., 1])
-        left_up = self.maximum(boxes1[..., :2], boxes2[..., :2])
-        right_down = self.minimum(boxes1[..., 2:], boxes2[..., 2:])
-        inter_section = self.maximum(right_down - left_up, self.value_zero)
-        inter_area = inter_section[..., 0] * inter_section[..., 1]
-        union_area = boxes1Area + boxes2Area - inter_area
-        ious = self.maximum(1.0 * inter_area / union_area, self.eps)
-        enclose_left_up = self.minimum(boxes1[..., :2], boxes2[..., :2])
-        enclose_right_down = self.maximum(boxes1[..., 2:], boxes2[..., 2:])
-        enclose = self.maximum(enclose_right_down - enclose_left_up, self.value_zero)
-        enclose_area = enclose[..., 0] * enclose[..., 1]
-        gious_loss = ious - 1.0 * (enclose_area - union_area) / enclose_area
-        gious_loss = 1 - gious_loss
-        gious_loss = self.loss_weight * gious_loss
-        return gious_loss
+class Iou(nn.Cell):
+    def __init__(self):
+        super(Iou, self).__init__()
+        self.cast = P.Cast()
+        self.min = P.Minimum()
+        self.max = P.Maximum()
+        self.div = P.RealDiv()
+        self.eps = 0.000001
 
-
-class Overlaps(nn.Cell):
-    def __init__(self, eps=1e-6):
-        super(Overlaps, self).__init__()
-        self.eps = Tensor(eps, mstype.float32)
-        self.value_zero = Tensor(0, mstype.float32)
-        self.maximum = P.Maximum()
-        self.minimum = P.Minimum()
-
-    def construct(self, boxes1, boxes2):
-        boxes1Area = (boxes1[..., 2] - boxes1[..., 0]) * (boxes1[..., 3] - boxes1[..., 1])
-        boxes2Area = (boxes2[..., 2] - boxes2[..., 0]) * (boxes2[..., 3] - boxes2[..., 1])
-        left_up = self.maximum(boxes1[..., :2], boxes2[..., :2])
-        right_down = self.minimum(boxes1[..., 2:], boxes2[..., 2:])
-        inter_section = self.maximum(right_down - left_up, self.value_zero)
-        inter_area = inter_section[..., 0] * inter_section[..., 1]
-        union_area = boxes1Area + boxes2Area - inter_area
-        ious = self.maximum(1.0 * inter_area / union_area, self.eps)
-        return ious
-
+    def construct(self, box_p, box_gt):
+        """construct method"""
+        box_p_area = (box_p[..., 2:3] - box_p[..., 0:1]) * (box_p[..., 3:4] - box_p[..., 1:2])
+        box_gt_area = (box_gt[..., 2:3] - box_gt[..., 0:1]) * (box_gt[..., 3:4] - box_gt[..., 1:2])
+        x_1 = self.max(box_p[..., 0:1], box_gt[..., 0:1])
+        x_2 = self.min(box_p[..., 2:3], box_gt[..., 2:3])
+        y_1 = self.max(box_p[..., 1:2], box_gt[..., 1:2])
+        y_2 = self.min(box_p[..., 3:4], box_gt[..., 3:4])
+        intersection = (y_2 - y_1) * (x_2 - x_1)
+        xc_1 = self.min(box_p[..., 0:1], box_gt[..., 0:1])
+        xc_2 = self.max(box_p[..., 2:3], box_gt[..., 2:3])
+        yc_1 = self.min(box_p[..., 1:2], box_gt[..., 1:2])
+        yc_2 = self.max(box_p[..., 3:4], box_gt[..., 3:4])
+        union = box_p_area + box_gt_area - intersection
+        union = union + self.eps
+        iou = self.div(self.cast(intersection, ms.float32), self.cast(union, ms.float32))
+        iou = iou.squeeze(-1)
+        return iou
 
 class NanoDetWithLossCell(nn.Cell):
-    def __init__(self, network, config):
+    def __init__(self, network):
         super(NanoDetWithLossCell, self).__init__()
         self.network = network
-        self.strides = config.strides
-        self.reg_max = config.reg_max
         self.cast = P.Cast()
         self.reduce_sum = P.ReduceSum()
         self.reduce_mean = P.ReduceMean()
         self.less = P.Less()
         self.tile = P.Tile()
         self.expand_dims = P.ExpandDims()
-        self.giou_loss = GIouLossII()
-        self.qfl_loss = QualityFocalLossIII()
-        self.dfs_loss = DistributionFocalLossII()
-        self.integral = Integral()
         self.zeros = P.Zeros()
-        self.distance2bbox = Distance2bbox()
         self.reshape = P.Reshape()
-        self.bbox_overlaps = Overlaps()
         self.sigmoid = P.Sigmoid()
-        self.max = P.ArgMaxWithValue(axis=1)
+        self.ones = P.Ones()
+        self.iou = Iou()
+        self.loss_bbox = GIou()
+        self.loss_qfl = QualityFocalLoss()
+        self.loss_dfl = DistributionFocalLoss()
+        self.integral = Integral()
+        self.distance2bbox = Distance2bbox()
+        self.bbox2distance = BBox2Distance()
 
     # def construct(self, x, gt_meta):
-    def construct(self, x, pos_inds: Tensor, pos_grid_cell_center: Tensor, pos_decode_bbox_targets: Tensor,
-                  target_corners: Tensor, assign_labels: Tensor):
+    def construct(self, x, res_boxes, res_labels, res_center_priors, nums_match):
         cls_scores, bbox_preds = self.network(x)
-        cls_scores = cls_scores.reshape(-1, 80)
-        bbox_preds = bbox_preds.reshape(-1, 4 * (self.reg_max + 1))
+        b = cls_scores.shape[0]
+        cls_scores = self.cast(cls_scores, mstype.float32)
+        bbox_preds = self.cast(bbox_preds, mstype.float32)
 
-        weight_targets = self.sigmoid(cls_scores)
-        weight_targets = self.max(weight_targets)[1][pos_inds]
+        mask = self.cast(self.less(-1, res_labels), mstype.float32)
+        nums_match = self.reduce_sum(self.cast(nums_match, mstype.float32))
+        mask_bbox = self.tile(self.expand_dims(mask, -1), (1, 1, 4))
+        mask_bbox_preds = self.tile(self.expand_dims(mask, -1), (1, 1, 32))
 
-        pos_size = pos_inds.size
-        pos_inds = pos_inds.squeeze()
-        pos_grid_cell_center = pos_grid_cell_center.squeeze()
-        pos_decode_bbox_targets = pos_decode_bbox_targets.squeeze()
-        target_corners = target_corners.squeeze()
-        assign_labels = assign_labels.squeeze()
+        mask_bbox_pred_corners = self.integral(bbox_preds) * mask_bbox
+        mask_grid_cell_centers = (res_center_priors / self.tile(
+            self.expand_dims(res_center_priors[..., 2], -1), (1, 1, 4))) * mask_bbox
+        mask_decode_bbox = res_boxes / self.tile(
+            self.expand_dims(res_center_priors[..., 2], -1), (1, 1, 4))
+        decode_bbox_pred = self.distance2bbox(mask_grid_cell_centers, mask_bbox_pred_corners)
 
-        pos_bbox_pred = bbox_preds[pos_inds]
-        pos_bbox_pred_corners = self.integral(pos_bbox_pred)
-        pos_decode_bbox_pred = self.distance2bbox(pos_grid_cell_center, pos_bbox_pred_corners)
-        pred_corners = self.reshape(pos_bbox_pred, (-1, self.reg_max + 1))
-        # pred_corners = pos_bbox_pred.reshape(-1)
-        # int64这里出现
-        score = self.zeros(assign_labels.shape, ms.float32)
-        temp = self.bbox_overlaps(pos_decode_bbox_pred, pos_decode_bbox_targets)
-        score[pos_inds] = self.bbox_overlaps(pos_decode_bbox_pred, pos_decode_bbox_targets)
-        # score[None][:, pos_inds] = self.bbox_overlaps(pos_decode_bbox_pred, pos_decode_bbox_targets)
-        target = (assign_labels, score)
-        giou_loss = self.reduce_sum(self.giou_loss(pos_decode_bbox_pred, pos_decode_bbox_targets))
-        dfs_loss = self.reduce_sum(self.dfs_loss(pred_corners, target_corners, pos_inds))
-        qfl_loss = self.reduce_sum(self.qfl_loss(cls_scores, assign_labels, score, pos_inds))
-        loss = giou_loss + dfs_loss + qfl_loss
+        # loss_bbox
+        loss_bbox = self.loss_bbox(decode_bbox_pred, mask_decode_bbox) * mask
+        loss_bbox = self.reduce_sum(loss_bbox, -1)
+        # loss_qfl
+        score = self.ones(F.shape(res_labels), mstype.float32)
+        score = score * self.iou(decode_bbox_pred, mask_decode_bbox) * mask
+        loss_qfl = self.loss_qfl(cls_scores, res_labels, score)
+        loss_qfl = self.reduce_sum(self.reduce_mean(loss_qfl, -1), -1)
+        # loss_dfl
+        pred_corners = self.reshape(bbox_preds * mask_bbox_preds, (-1, 8))
+        target_corners = self.reshape(self.bbox2distance(mask_grid_cell_centers, mask_decode_bbox), (-1,))
+        loss_dfl = self.loss_dfl(pred_corners, target_corners) * mask_bbox.reshape(-1)
+        loss_dfl = self.reshape(loss_dfl, (-1, 2100, 4))
+        loss_dfl = self.reduce_sum(self.reduce_mean(loss_dfl, -1), -1)
+        loss = self.reduce_sum((loss_qfl + 2.0 * loss_bbox + 0.25 * loss_dfl) / nums_match)
         return loss
-
-
-class NanoDetWithLossCellII(nn.Cell):
-    def __init__(self, network):
-        super(NanoDetWithLossCellII, self).__init__()
-        self.network = network
-
-    # def construct(self, x, gt_meta):
-    def construct(self, x):
-        cls_scores, bbox_preds = self.network(x)
-
-        return cls_scores, bbox_preds
-
-
 
 class TrainingWrapper(nn.Cell):
     def __init__(self, network, optimizer, sens=1.0):
@@ -553,70 +550,102 @@ class TrainingWrapper(nn.Cell):
         self.optimizer(grads)
         return loss
 
+
 class NanodetInferWithDecoder(nn.Cell):
     def __init__(self, network, center_priors, config):
         super(NanodetInferWithDecoder, self).__init__()
         self.network = network
-        self.distance2bbox = Distance2bbox(config.img_shape)
+        # self.distance2bbox = Distance2bbox(config.img_shape)
         self.distribution_project = Integral()
         self.center_priors = center_priors
         self.sigmoid = P.Sigmoid()
         self.expandDim = P.ExpandDims()
         self.tile = P.Tile()
         self.shape = P.Shape()
+        self.stack = P.Stack(-1)
 
-    def construct(self, x):
+    def construct(self, x, max_shape):
         x_shape = self.shape(x)
         default_priors = self.expandDim(self.center_priors, 0)
         cls_preds, reg_preds = self.network(x)
-        dis_preds = self.distribution_project(reg_preds) * self.tile(self.expandDim(default_priors[..., 2], -1), (1, 1, 4))
-        bboxes = self.distance2bbox(default_priors[..., :2], dis_preds)
+        dis_preds = self.distribution_project(reg_preds) * self.tile(self.expandDim(default_priors[..., 2], -1),
+                                                                     (1, 1, 4))
+        bboxes = self.distance2bbox(default_priors[..., :2], dis_preds, max_shape)
         scores = self.sigmoid(cls_preds)
-        bboxes = self.tile(self.expandDim(bboxes, -2), (1, 1, 80, 1))
+        # bboxes = self.tile(self.expandDim(bboxes, -2), (1, 1, 80, 1))
         return bboxes, scores
 
+    def distance2bbox(self, points, distance, max_shape=None):
+        y1 = points[..., 0] - distance[..., 1]
+        x1 = points[..., 1] - distance[..., 0]
+        y2 = points[..., 0] + distance[..., 3]
+        x2 = points[..., 1] + distance[..., 2]
+        if self.max_shape is not None:
+            y1 = C.clip_by_value(y1, Tensor(0), Tensor(self.max_shape[0]))
+            x1 = C.clip_by_value(x1, Tensor(0), Tensor(self.max_shape[1]))
+            y2 = C.clip_by_value(y2, Tensor(0), Tensor(self.max_shape[0]))
+            x2 = C.clip_by_value(x2, Tensor(0), Tensor(self.max_shape[1]))
+        return self.stack([y1, x1, y2, x2])
 
 
-if __name__ == "__main__":
-    from mindspore.train.serialization import load_checkpoint, load_param_into_net
-    import cv2 as cv
-    import numpy as np
-
-    ms.set_context(mode=ms.PYNATIVE_MODE, device_target="CPU")
-    img = cv.imread('../000000007088.jpg')
-    img = cv.resize(img, (320, 320))
-    transpose = P.Transpose()
-    img = Tensor(img, mstype.float32)
-    # img = transpose(img,(2,0,1)).reshape(1,3,320,320)
-    img = img.reshape(1, 3, 320, 320)
-
-    # print(img[..., 2].shape)
-    backbone = shuffleNet()
-    nanodet = NanoDet(backbone,config)
-    net = NanoDetWithLossCellII(nanodet)
-    center_priors = Tensor(np.random.rand(2100,4),mstype.float32)
-
-    infor = NanodetInferWithDecoder(nanodet, center_priors, config)
-    infor(img)
-    param_dict = load_checkpoint('../checkpoint.ckpt')
-    # net = NanoDet(backbone, config)
-    #
-    # for item in net.parameters_and_names():
-    #     print(item)
-    # net.init_parameters_data()
-    load_param_into_net(net, param_dict)
-    # for item in net.parameters_and_names():
-    #     # out = Tensor(item)
-    #     # print(out.shape)
-    #     print(item[1])
-    net.set_train(False)
-    cls_scores, bbox_preds = net(img)
-    # infor = NanodetInferWithDecoder(net, config)
-    # infor(img)
-    topk = P.TopK()
-    integral = Integral()
-    _, ind = topk(cls_scores,1)
-    temp = ind.reshape(-1)
-    bbox = integral(bbox_preds)
-
-
+# if __name__ == "__main__":
+#     from mindspore.train.serialization import load_checkpoint, load_param_into_net
+#     import cv2 as cv
+#     import numpy as np
+#
+#     ms.set_context(mode=ms.GRAPH_MODE, device_target="CPU")
+#     img = cv.imread('../000000007088.jpg')
+#     img = cv.resize(img, (320, 320))
+#     transpose = P.Transpose()
+#     img = Tensor(img, mstype.float32)
+#     # img = transpose(img,(2,0,1)).reshape(1,3,320,320)
+#     img = img.reshape(1, 3, 320, 320)
+#
+#     # print(img[..., 2].shape)
+#     backbone = shuffleNet()
+#     nanodet = NanoDet(backbone, config)
+#     net = NanoDetWithLossCell(nanodet)
+#     res_center_priors = Tensor(np.random.rand(1,2100, 4), mstype.float32)
+#     # x, res_boxes, res_corners, res_labels, res_center_priors, nums_match
+#     res_boxes = Tensor(np.random.rand(1, 2100, 4), mstype.float32)
+#     res_labels = Tensor(np.random.randint(0,80,(1,2100)), mstype.int32)
+#     nums_match = Tensor([24], mstype.float32)
+#     loss = net(img, res_boxes, res_labels, res_center_priors, nums_match)
+#
+#
+#
+#     # net.set_train(False)
+#     # # infor = NanodetInferWithDecoder(nanodet, center_priors, config)
+#     # # infor(img)
+#     # param_dict = load_checkpoint('../checkpoint.ckpt')
+#     # # net = NanoDet(backbone, config)
+#     # net.init_parameters_data()
+#     # load_param_into_net(net, param_dict)
+#     # # for item in net.parameters_and_names():
+#     # #     out = Tensor(item[1])
+#     # #     print(out)
+#     # # import numpy as np
+#     # # np.random.seed(1)
+#     # # C2 = Tensor(np.random.rand(1, 96, 40, 40), mstype.float32)
+#     # # C3 = Tensor(np.random.rand(1, 96, 20, 20), mstype.float32)
+#     # # C4 = Tensor(np.random.rand(1, 96, 10, 10), mstype.float32)
+#     # # inputs = (C2, C3, C4)
+#     #
+#     # cls_scores, bbox_preds = net(img)
+#     # # out = net(inputs)
+#     # # print(out[0])
+#     # for item in net.parameters_and_names():
+#     #     print(item[0])
+#     # # net.init_parameters_data()
+#     # # for item in net.parameters_and_names():
+#     # #     # out = Tensor(item)
+#     # #     # print(out.shape)
+#     # #     print(item[1])
+#     #
+#     # # infor = NanodetInferWithDecoder(net, center_priors, config)
+#     # # infor(img)
+#     # topk = P.TopK()
+#     # integral = Integral()
+#     # # _, ind = topk(cls_scores,1)
+#     # # temp = ind.reshape(-1)
+#     # # bbox = integral(bbox_preds)

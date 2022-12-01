@@ -26,7 +26,7 @@ import mindspore.dataset as de
 import mindspore.dataset.vision.c_transforms as C
 from mindspore.mindrecord import FileWriter
 from src.model_utils.config import config
-from .box_utils import jaccard_numpy, nanodet_bboxes_encode
+from .box_utilsII import jaccard_numpy, nanodet_bboxes_encode
 
 def _rand(a=0., b=1.):
     """Generate random."""
@@ -124,7 +124,7 @@ def preprocess_fn(img_id, image, box, is_training):
         """Data augmentation function."""
         # box xyxy
         ih, iw, _ = image.shape
-        w, h = image_size
+        h, w = image_size
 
         if not is_training:
             return _infer_data(image, image_size)
@@ -150,8 +150,8 @@ def preprocess_fn(img_id, image, box, is_training):
 
         # 对box进行 / image的大小
         # 归一化操作
-        box[:, [0, 2]] = box[:, [0, 2]] / ih
-        box[:, [1, 3]] = box[:, [1, 3]] / iw
+        box[:, [0, 2]] = box[:, [0, 2]] * (h / ih)
+        box[:, [1, 3]] = box[:, [1, 3]] * (w / iw)
 
         if flip:
             box[:, [1, 3]] = 1 - box[:, [3, 1]]
@@ -161,9 +161,9 @@ def preprocess_fn(img_id, image, box, is_training):
         # 这里需要直接返回已经筛选出来的正样本Anchor, 正样本类别, 正样本数量
         # 施工切入点!!!!!!!!!!!!!!!!!!
         # box xyxy
-        pos_inds, pos_grid_cell_centers, pos_bbox_targets, target_corners, assign_labels = nanodet_bboxes_encode(box)
+        res_boxes, res_labels, res_center_priors, num_match = nanodet_bboxes_encode(box)
         # return 对应
-        return image, pos_inds, pos_grid_cell_centers, pos_bbox_targets, target_corners, assign_labels
+        return image, res_boxes, res_labels, res_center_priors, num_match
 
     return _data_aug(image, box, is_training, image_size=config.img_shape)
 # ===============================================================================================================
@@ -412,9 +412,9 @@ def create_nanodet_dataset(mindrecord_file, batch_size, repeat_num, device_num=1
     ds = ds.map(operations=decode, input_columns=["image"])
     change_swap_op = C.HWC2CHW()
     # Computed from random subset of ImageNet training images
-    normalize_op = C.Normalize(mean=[0.485 * 255, 0.456 * 255, 0.406 * 255],
-                               std=[0.229 * 255, 0.224 * 255, 0.225 * 255])
-    color_adjust_op = C.RandomColorAdjust(brightness=0.4, contrast=0.4, saturation=0.4)
+    normalize_op = C.Normalize(mean=[103.53, 116.28, 123.675],
+                               std=[57.375, 57.12, 58.395])
+    color_adjust_op = C.RandomColorAdjust(brightness=0.2, contrast=[0.6, 1.4], saturation=[0.5, 1.2])
     # img_id, image, box, is_training
     # annotation 传进去的是bbox
     # preprocess_fu 返回 image, box, label, num_match
@@ -423,9 +423,7 @@ def create_nanodet_dataset(mindrecord_file, batch_size, repeat_num, device_num=1
     compose_map_func = (lambda img_id, image, annotation: preprocess_fn(img_id, image, annotation, is_training))
 
     if is_training:
-        # output_columns = ["image", "box", "label", "num_match"]
-        output_columns = ["image", "pos_inds", "pos_grid_cell_centers", "pos_bbox_targets", "target_corners", "assign_labels"]
-        # pos_inds, pos_grid_cell_centers, pos_bbox_targets, target_corners, assign_labels
+        output_columns = ["image", "res_boxes", "res_labels", "res_center_priors", "num_match"]
         trans = [color_adjust_op, normalize_op, change_swap_op]
     else:
         output_columns = ["img_id", "image", "image_shape"]

@@ -26,24 +26,21 @@ is_training: True
 # ======================================================================================
 # Training options
 img_shape: [320, 320]
-num_retinanet_boxes: 67995
+num_nanodet_boxes: 2100
 match_thershold: 0.5
 nms_thershold: 0.6
 min_score: 0.1
 max_boxes: 100
 
 # learning rate settings
-lr: 0.09
-# lr_init: 1e-6
-lr_init: 1e-3
-lr_end_rate: 5e-3
-warmup_epochs1: 2
-warmup_epochs2: 5
-warmup_epochs3: 23
-warmup_epochs4: 60
-warmup_epochs5: 160
+lr: 0.14
 momentum: 0.9
-weight_decay: 1.5e-4
+weight_decay: 0.0001
+milestones: [240,260,275]
+lr_gamma: 0.1
+warmup_epochs: 3
+epoch_size: 280
+batch_size: 192
 
 # network
 extras_out_channels: [96, 96 ,96]
@@ -59,8 +56,8 @@ reg_max : 7
 topk: 9
 
 # `mindrecord_dir` and `coco_root` are better to use absolute path.
-mindrecord_dir: "/home/DataSet/cocodataset/"
-coco_root: "/home/DataSet/MindRecord_COCO"
+mindrecord_dir: "/home/ma-user/work/mindRecord"
+coco_root: "/home/ma-user/work/COCO2017"
 train_data_type: "train2017"
 val_data_type: "val2017"
 instances_set: "annotations/instances_{}.json"
@@ -98,9 +95,6 @@ finish_epoch: 0
 # optimiter options
 workers: 24
 mode: "sink"
-#epoch_size: 500
-epoch_size: 1
-batch_size: 1
 pre_trained: ""
 pre_trained_epoch_size: 0
 loss_scale: 1024

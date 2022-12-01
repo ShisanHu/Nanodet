@@ -22,6 +22,7 @@ import mindspore.nn as nn
 from mindspore import context, Tensor
 from mindspore.communication.management import init, get_rank
 from mindspore.train.callback import CheckpointConfig, ModelCheckpoint, LossMonitor, TimeMonitor, Callback
+from mindspore.train.callback import SummaryCollector
 from mindspore.train import Model
 from mindspore.context import ParallelMode
 from mindspore.train.serialization import load_checkpoint, load_param_into_net
@@ -32,7 +33,7 @@ from mindspore.common import set_seed
 from src.nanodet import NanoDetWithLossCell, TrainingWrapper, ShuffleNetV2II, NanoDetII, shuffleNet
 from src.dataset import create_nanodet_dataset
 
-from src.lr_schedule import get_lr
+from src.lr_schedule import get_lr, get_MultiStepLR
 from src.init_params import init_net_param, filter_checkpoint_parameter
 
 from src.model_utils.config import config
@@ -40,6 +41,7 @@ from src.model_utils.moxing_adapter import moxing_wrapper
 from src.model_utils.device_adapter import get_device_id, get_device_num, get_rank_id
 
 set_seed(1)
+
 
 # 可以不用改变
 class Monitor(Callback):
@@ -63,11 +65,13 @@ class Monitor(Callback):
 
     def step_end(self, run_context):
         cb_params = run_context.original_args()
-        print("lr:[{:8.6f}]".format(self.lr_init[cb_params.cur_step_num-1]), flush=True)
+        print("lr:[{:8.6f}]".format(self.lr_init[cb_params.cur_step_num - 1]), flush=True)
+
 
 # 不变
 def modelarts_pre_process():
     '''modelarts pre process function.'''
+
     def unzip(zip_file, save_dir):
         import zipfile
         s_time = time.time()
@@ -116,6 +120,8 @@ def modelarts_pre_process():
             time.sleep(1)
 
         print("Device: {}, Finish sync unzip data from {} to {}.".format(get_device_id(), zip_file_1, save_dir_1))
+
+
 # 可以不变
 def set_graph_kernel_context(device_target):
     if device_target == "GPU":
@@ -123,16 +129,16 @@ def set_graph_kernel_context(device_target):
         context.set_context(enable_graph_kernel=True,
                             graph_kernel_flags="--enable_parallel_fusion --enable_expand_ops=Conv2D")
 
+
 # 重点应该在此
 @moxing_wrapper(pre_process=modelarts_pre_process)
 def main():
-
     config.lr_init = ast.literal_eval(config.lr_init)
     config.lr_end_rate = ast.literal_eval(config.lr_end_rate)
 
     if config.device_target == "Ascend":
         # context.set_context(mode=context.PYNATIVE_MODE, device_target="Ascend",pynative_synchronize=True)
-        context.set_context(mode=context.GRAPH_MODE, device_target="Ascend")
+        context.set_context(mode=context.GRAPH_MODE, device_target="Ascend",save_graphs=True)
         if config.distribute:
             if os.getenv("DEVICE_ID", "not_set").isdigit():
                 context.set_context(device_id=get_device_id())
@@ -176,8 +182,8 @@ def main():
 
     # When create MindDataset, using the fitst mindrecord file, such as retinanet.mindrecord0.
     dataset = create_nanodet_dataset(mindrecord_file, repeat_num=1,
-                                       num_parallel_workers=config.workers,
-                                       batch_size=config.batch_size, device_num=device_num, rank=rank)
+                                     num_parallel_workers=config.workers,
+                                     batch_size=config.batch_size, device_num=device_num, rank=rank)
 
     dataset_size = dataset.get_dataset_size()
     print("Create dataset done!")
@@ -201,26 +207,16 @@ def main():
 
     # 关键之处===========================================================================================
 
-    opt = nn.SGD()
-
-    lr = Tensor(get_lr(global_step=0,
-                       lr_init=config.lr_init, lr_end=config.lr_end_rate * config.lr, lr_max=config.lr,
-                       warmup_epochs1=config.warmup_epochs1, warmup_epochs2=config.warmup_epochs2,
-                       warmup_epochs3=config.warmup_epochs3, warmup_epochs4=config.warmup_epochs4,
-                       warmup_epochs5=config.warmup_epochs5, total_epochs=config.epoch_size,
-                       steps_per_epoch=dataset_size))
-
-    opt = nn.Momentum(filter(lambda x: x.requires_grad, net.get_parameters()), lr,
-                      config.momentum, config.weight_decay, loss_scale)
-
-
+    lr = Tensor(get_MultiStepLR(config.lr, config.milestones, dataset_size,
+                                config.warmup_epochs, config.epoch_size, config.lr_gamma))
+    opt = nn.SGD(filter(lambda x: x.requires_grad, net.get_parameters()),
+                 lr, config.momentum, config.weight_decay, loss_scale)
     net = TrainingWrapper(net, opt, loss_scale)
-
     model = Model(net)
 
     print("Start train NanoDet, the first epoch will be slower because of the graph compilation.")
-
-    cb = [TimeMonitor(), LossMonitor(10)]
+    summary = SummaryCollector(summary_dir="./summary_dir")
+    cb = [TimeMonitor(), LossMonitor(10), summary]
     cb += [Monitor(lr_init=lr.asnumpy())]
 
     config_ck = CheckpointConfig(save_checkpoint_steps=dataset_size * config.save_checkpoint_epochs,
@@ -238,6 +234,7 @@ def main():
         cb += [ckpt_cb]
         model.train(config.epoch_size, dataset, callbacks=cb, dataset_sink_mode=True)
         # model.train(config.epoch_size, dataset, callbacks=cb, dataset_sink_mode=False)
+
 
 if __name__ == '__main__':
     main()

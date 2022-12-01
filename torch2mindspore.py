@@ -3,10 +3,10 @@ import mindspore
 from mindspore.train.serialization import save_checkpoint
 from mindspore import Tensor
 
-def pytorch2mindspore(ckpt_name='nanodet_m.ckpt'):
+def pytorch2mindspore(ckpt_name='shufflenetv2_x1-5666bf0f80.pth'):
     par_dict = torch.load(ckpt_name, map_location=torch.device('cpu'))
     weights = []
-    for k, v in par_dict['state_dict'].items():
+    for k, v in par_dict.items():
         print(k)
         # print(v)
         param_dict = {}
@@ -56,4 +56,4 @@ if __name__ == "__main__":
     pytorch2mindspore()
     # par_dict = mindspore.load_checkpoint('checkpoint.ckpt')
     # for item in par_dict.items():
-    #     print(item)
+    #     print(Tensor(item[1]))

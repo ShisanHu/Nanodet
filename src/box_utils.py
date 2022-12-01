@@ -22,14 +22,12 @@ from src.model_utils.config import config
 
 class GeneratDefaultGridCells:
     def __init__(self):
-        # feature_size = [[40,40],[20,20], [10,10]]
-        # steps = [8, 16, 32]
         self.center_priors = []
         anchor_size = np.array(config.anchor_size)
         for i, feature_size in enumerate(config.feature_size):
             w, h = anchor_size[i], anchor_size[i]
             for i, j in it.product(range(feature_size), repeat=2):
-                cx, cy = (j + 0.5) * anchor_size[i],(i + 0.5) * anchor_size[i]
+                cx, cy = (j + 0.5) * w,(i + 0.5) * w
                 self.center_priors.append([cy, cx, h, w])
 
         self.center_priors = np.array(self.center_priors, dtype='float32')

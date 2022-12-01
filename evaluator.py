@@ -235,23 +235,36 @@ def retinanet_eval():
             #         final_score += class_box_scores.tolist()
             #         final_label += [classs_dict[val_cls_dict[c]]] * len(class_box_scores)
 
-            score_thr = config.score_thr
-            valid_mask = scores > score_thr
-            valid_mask_bboxes = np.stack([valid_mask, valid_mask, valid_mask, valid_mask], axis=-1)
-            bboxes = bboxes[valid_mask_bboxes].reshape(-1, 4)
-            scores = scores[valid_mask]
-            labels = np.nonzero(valid_mask)[1].astype(np.float32)
-            if valid_mask.any():
-                max_coordinate = bboxes.max()
-                offsets = labels * (max_coordinate + 1)
-                boxes_for_nms = bboxes + offsets[:, None]
-                nms_index = apply_nms(boxes_for_nms, scores, config.nms_thershold, 10000)
-                bboxes = bboxes[nms_index]
-                scores = scores[nms_index]
-                final_boxes += bboxes.tolist()
-                final_score += scores.tolist()
-                # final_label += [classs_dict[val_cls_dict[c]]] * len(scores)
+            for c in range(0, num_classes):
+                class_scores = scores[:, c]
+                valid_mask = class_scores > config.score_thr
+                class_scores = class_scores[valid_mask]
+                class_bboxes = bboxes[valid_mask] * [h / 320, w / 320, h / 320, w / 320]
 
+                if valid_mask.any():
+                    nms_index = apply_nms(class_bboxes, class_scores, config.nms_thershold, 100)
+                    class_bboxes = class_bboxes[nms_index]
+                    class_scores = class_scores[nms_index]
+                    final_boxes += class_bboxes.tolist()
+                    final_score += class_scores.tolist()
+                    final_label += [classs_dict[val_cls_dict[c]]] * len(class_scores)
+
+            # score_thr = config.score_thr
+            # valid_mask = scores > score_thr
+            # valid_mask_bboxes = np.stack([valid_mask, valid_mask, valid_mask, valid_mask], axis=-1)
+            # bboxes = bboxes[valid_mask_bboxes].reshape(-1, 4)
+            # scores = scores[valid_mask]
+            # labels = np.nonzero(valid_mask)[1].astype(np.float32)
+            # if valid_mask.any():
+            #     max_coordinate = bboxes.max()
+            #     offsets = labels * (max_coordinate + 1)
+            #     boxes_for_nms = bboxes + offsets[:, None]
+            #     nms_index = apply_nms(boxes_for_nms, scores, config.nms_thershold, 10000)
+            #     bboxes = bboxes[nms_index]
+            #     scores = scores[nms_index]
+            #     final_boxes += bboxes.tolist()
+            #     final_score += scores.tolist()
+            #     # final_label += [classs_dict[val_cls_dict[c]]] * len(scores)
 
             for loc, label, score in zip(final_boxes, final_label, final_score):
                 res = {}
