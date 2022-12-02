@@ -121,7 +121,7 @@ def nanodet_bboxes_encode(boxes):
     res_center_priors = np.zeros((config.num_nanodet_boxes, 4), dtype=np.float32)
 
     for bbox in boxes:
-        label = int(bbox[4] - 1)
+        label = int(bbox[4])
         labels.append(label)
         overlaps_inf = atssAssign(bbox)
         overlaps_inf_list.append(overlaps_inf)
