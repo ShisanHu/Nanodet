@@ -79,6 +79,7 @@ def nanodet_bboxes_encode(boxes):
         overlaps_std = candidate_overlaps.std(0)
         overlaps_thr = overlaps_mean + overlaps_std
         is_pos = candidate_overlaps >= overlaps_thr
+        # print(is_pos)
         cx = grid_priors_cx[candidate_idxs]
         cy = grid_priors_cy[candidate_idxs]
 
@@ -87,12 +88,12 @@ def nanodet_bboxes_encode(boxes):
         r_ = bbox[3] - grid_priors_cx[candidate_idxs]
         b_ = bbox[2] - grid_priors_cy[candidate_idxs]
         is_in_gts = np.min(np.stack([l_, t_, r_, b_], axis=0), axis=0) > 0.01
+        # print(bbox)
+        # print(is_in_gts)
         is_pos = is_pos & is_in_gts
-
         overlaps_inf = np.full_like(overlaps, -INF)
         index = candidate_idxs[is_pos]
         overlaps_inf[index] = overlaps[index]
-
         return overlaps_inf
 
     def bbox2distance(points, bbox, max_dis=None, eps=0.1):
@@ -107,18 +108,20 @@ def nanodet_bboxes_encode(boxes):
             bottom = np.clip(bottom, 0, max_dis - eps)
         return np.stack([left, top, right, bottom], -1)
 
-    boxes = np.array([[50, 50, 60, 60, 2], [100, 100, 110, 115, 7], [30, 30, 80, 80, 1], [110, 80, 200, 200, 10],
-                      [60, 70, 150, 150, 4]], dtype=np.float32)
+    #     boxes = np.array([[50, 50, 60, 60, 2], [100, 100, 110, 115, 7], [30, 30, 80, 80, 1], [110, 80, 200, 200, 10],
+    #                       [60, 70, 150, 150, 4]], dtype=np.float32)
+
     labels = []
     overlaps_inf_list = []
     INF = 100000
+
     res_boxes = np.zeros((config.num_nanodet_boxes, 4), dtype=np.float32)
     res_corners = np.zeros((config.num_nanodet_boxes, 4), dtype=np.float32)
     res_labels = np.full((config.num_nanodet_boxes), -1, dtype=np.int64)
     res_center_priors = np.zeros((config.num_nanodet_boxes, 4), dtype=np.float32)
 
     for bbox in boxes:
-        label = int(bbox[4])
+        label = int(bbox[4] - 1)
         labels.append(label)
         overlaps_inf = atssAssign(bbox)
         overlaps_inf_list.append(overlaps_inf)
@@ -132,7 +135,7 @@ def nanodet_bboxes_encode(boxes):
     temp = gt_labels[argmax_overlaps[max_overlaps != -INF]]
     pos_inds = np.nonzero(assigned_labels != -1)[0]
     neg_inds = np.nonzero(assigned_labels == -1)[0]
-
+    # print(max_overlaps[pos_inds])
     if len(boxes.shape) < 2:
         boxes = boxes.reshape(-1, 5)
 
@@ -144,8 +147,12 @@ def nanodet_bboxes_encode(boxes):
     target_corners = bbox2distance(pos_grid_priors_center,
                                    pos_bbox) / center_priors[pos_inds, None, 2]
     target_corners = target_corners.clip(min=0, max=7 - 0.1)
+    # print(target_corners)
     res_labels[pos_inds] = assigned_labels[pos_inds]
     res_corners[pos_inds] = target_corners
+    if len(pos_inds) == 0:
+        print(pos_inds)
+        print("有0存在！！！")
     num_match = np.array([len(pos_inds)], dtype=np.int32)
     res_center_priors = center_priors
     return res_boxes, res_labels, res_center_priors, num_match

@@ -13,7 +13,7 @@
 # limitations under the License.
 # ============================================================================
 
-"""Evaluation for retinanet"""
+"""Evaluation for nanodet"""
 
 import os
 import time
@@ -64,6 +64,7 @@ def apply_nms(all_boxes, all_scores, thres, max_boxes):
 
         order = order[inds + 1]
     return keep
+
 
 def make_dataset_dir(mindrecord_dir, mindrecord_file, prefix):
     if config.dataset == "voc":
@@ -161,12 +162,19 @@ def retinanet_eval():
 
     backbone = shuffleNet()
     net = NanoDet(backbone, config)
-    net = NanodetInferWithDecoder(net, center_priors, config)
-
+    # print(center_priors.shape)
+    net = NanodetInferWithDecoder(net, Tensor(center_priors), config)
+    print("执行到加载模型权重的位置")
     print("Load Checkpoint!")
-    param_dict = load_checkpoint(config.checkpoint_path)
+    param_dict = load_checkpoint('./checkpoint.ckpt')
     net.init_parameters_data()
     load_param_into_net(net, param_dict)
+
+    # for item in net.parameters_and_names():
+    #     out = Tensor(item[1])
+    #     print(out)
+
+    print("加载模型权重pass")
 
     net.set_train(False)
     i = batch_size
@@ -191,18 +199,22 @@ def retinanet_eval():
     cat_ids = coco_gt.loadCats(coco_gt.getCatIds())
     for cat in cat_ids:
         classs_dict[cat["name"]] = cat["id"]
-
+    # print(val_cls_dict[1])
+    # print(classs_dict[val_cls_dict[1]])
     for data in ds.create_dict_iterator(output_numpy=True):
         pred_data = []
         img_id = data['img_id']
+        # print(img_id)
         # [B, C, W, H]
         img_np = data['image']
         image_shape = data['image_shape']
 
         # [B, 2100, 80] [B, 2100, 32]
         # bboxes, scores
-        output = net(Tensor(img_np))
-
+        # output = net(Tensor(img_np), Tensor(image_shape))
+        output = net(Tensor(img_np), None)
+        # print(output[0])
+        # return
         for batch_idx in range(img_np.shape[0]):
             pred_data.append({"bboxes": output[0].asnumpy()[batch_idx],
                               "scores": output[1].asnumpy()[batch_idx],
@@ -210,6 +222,7 @@ def retinanet_eval():
                               "image_shape": image_shape[batch_idx]})
 
         i += batch_size
+
         for sample in pred_data:
             bboxes = sample['bboxes']
             scores = sample['scores']
@@ -220,56 +233,27 @@ def retinanet_eval():
             final_label = []
             final_score = []
             img_ids.append(img_id)
-
-            # for c in range(1, num_classes):
-            #     class_box_scores = box_scores[:, c]
-            #     score_mask = class_box_scores > config.min_score
-            #     class_box_scores = class_box_scores[score_mask]
-            #     class_boxes = pred_boxes[score_mask] * [h, w, h, w]
-            #
-            #     if score_mask.any():
-            #         nms_index = apply_nms(class_boxes, class_box_scores, config.nms_thershold, config.max_boxes)
-            #         class_boxes = class_boxes[nms_index]
-            #         class_box_scores = class_box_scores[nms_index]
-            #         final_boxes += class_boxes.tolist()
-            #         final_score += class_box_scores.tolist()
-            #         final_label += [classs_dict[val_cls_dict[c]]] * len(class_box_scores)
-
             for c in range(0, num_classes):
                 class_scores = scores[:, c]
-                valid_mask = class_scores > config.score_thr
+                valid_mask = class_scores > 0.05
                 class_scores = class_scores[valid_mask]
                 class_bboxes = bboxes[valid_mask] * [h / 320, w / 320, h / 320, w / 320]
 
                 if valid_mask.any():
-                    nms_index = apply_nms(class_bboxes, class_scores, config.nms_thershold, 100)
+                    nms_index = apply_nms(class_bboxes, class_scores, 0.6, 100)
                     class_bboxes = class_bboxes[nms_index]
                     class_scores = class_scores[nms_index]
                     final_boxes += class_bboxes.tolist()
                     final_score += class_scores.tolist()
-                    final_label += [classs_dict[val_cls_dict[c]]] * len(class_scores)
-
-            # score_thr = config.score_thr
-            # valid_mask = scores > score_thr
-            # valid_mask_bboxes = np.stack([valid_mask, valid_mask, valid_mask, valid_mask], axis=-1)
-            # bboxes = bboxes[valid_mask_bboxes].reshape(-1, 4)
-            # scores = scores[valid_mask]
-            # labels = np.nonzero(valid_mask)[1].astype(np.float32)
-            # if valid_mask.any():
-            #     max_coordinate = bboxes.max()
-            #     offsets = labels * (max_coordinate + 1)
-            #     boxes_for_nms = bboxes + offsets[:, None]
-            #     nms_index = apply_nms(boxes_for_nms, scores, config.nms_thershold, 10000)
-            #     bboxes = bboxes[nms_index]
-            #     scores = scores[nms_index]
-            #     final_boxes += bboxes.tolist()
-            #     final_score += scores.tolist()
-            #     # final_label += [classs_dict[val_cls_dict[c]]] * len(scores)
+                    final_label += ([classs_dict[val_cls_dict[c]]] * len(class_scores))
 
             for loc, label, score in zip(final_boxes, final_label, final_score):
                 res = {}
                 res['image_id'] = img_id
+                # res['bbox'] = [loc[1], loc[0], loc[3] - loc[1], loc[2] - loc[0]]
+                # res['bbox'] = [(loc[0] +loc[2]) / 2 ,(loc[1] +loc[3]) / 2, loc[2] - loc[0], loc[3] - loc[1]]
                 res['bbox'] = [loc[1], loc[0], loc[3] - loc[1], loc[2] - loc[0]]
+                # res['bbox'] = [loc[1], loc[0], loc[3], loc[2]]
                 res['score'] = score
                 res['category_id'] = label
                 predictions.append(res)

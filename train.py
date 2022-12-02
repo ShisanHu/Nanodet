@@ -27,13 +27,11 @@ from mindspore.train import Model
 from mindspore.context import ParallelMode
 from mindspore.train.serialization import load_checkpoint, load_param_into_net
 from mindspore.common import set_seed
-# from src.retinanet import retinanetWithLossCell, TrainingWrapper, retinanet50, resnet50
-# from src.dataset import create_retinanet_dataset
-
-from src.nanodet import NanoDetWithLossCell, TrainingWrapper, ShuffleNetV2II, NanoDetII, shuffleNet
+# from src.nanodet import NanoDetWithLossCell, TrainingWrapper, ShuffleNetV2II, NanoDetII, shuffleNet
+from src.nanodetII import NanoDetWithLossCell, TrainingWrapper, NanoDet, shuffleNet
 from src.dataset import create_nanodet_dataset
 
-from src.lr_schedule import get_lr, get_MultiStepLR
+from src.lr_schedule import get_MultiStepLR
 from src.init_params import init_net_param, filter_checkpoint_parameter
 
 from src.model_utils.config import config
@@ -122,7 +120,6 @@ def modelarts_pre_process():
         print("Device: {}, Finish sync unzip data from {} to {}.".format(get_device_id(), zip_file_1, save_dir_1))
 
 
-# 可以不变
 def set_graph_kernel_context(device_target):
     if device_target == "GPU":
         # Enable graph kernel for default model ssd300 on GPU back-end.
@@ -130,15 +127,13 @@ def set_graph_kernel_context(device_target):
                             graph_kernel_flags="--enable_parallel_fusion --enable_expand_ops=Conv2D")
 
 
-# 重点应该在此
 @moxing_wrapper(pre_process=modelarts_pre_process)
 def main():
-    config.lr_init = ast.literal_eval(config.lr_init)
-    config.lr_end_rate = ast.literal_eval(config.lr_end_rate)
+    # config.lr = ast.literal_eval(config.lr)
 
     if config.device_target == "Ascend":
-        # context.set_context(mode=context.PYNATIVE_MODE, device_target="Ascend",pynative_synchronize=True)
-        context.set_context(mode=context.GRAPH_MODE, device_target="Ascend",save_graphs=True)
+        # context.set_context(mode=context.PYNATIVE_MODE, device_target="Ascend",pynative_synchronize=True, save_graphs=True, save_graphs_path="./graph")
+        context.set_context(mode=context.GRAPH_MODE, device_target="Ascend")
         if config.distribute:
             if os.getenv("DEVICE_ID", "not_set").isdigit():
                 context.set_context(device_id=get_device_id())
@@ -176,7 +171,7 @@ def main():
         raise ValueError("Unsupported platform.")
 
     # 从这里开始就要变了！！！！！！
-    mindrecord_file = os.path.join(config.mindrecord_dir, "retinanet.mindrecord0")
+    mindrecord_file = os.path.join(config.mindrecord_dir, "nanodet.mindrecord0")
 
     loss_scale = float(config.loss_scale)
 
@@ -188,12 +183,9 @@ def main():
     dataset_size = dataset.get_dataset_size()
     print("Create dataset done!")
 
-    # backbone = ShuffleNetV2II()
-    # nanodet = NanoDetII(backbone, config)
-    # net = NanoDetWithLossCell(nanodet, config)
     backbone = shuffleNet()
-    nanodet = NanoDetII(backbone, config)
-    net = NanoDetWithLossCell(nanodet, config)
+    nanodet = NanoDet(backbone, config)
+    net = NanoDetWithLossCell(nanodet)
 
     init_net_param(net)
 
@@ -205,8 +197,6 @@ def main():
             filter_checkpoint_parameter(param_dict)
         load_param_into_net(net, param_dict)
 
-    # 关键之处===========================================================================================
-
     lr = Tensor(get_MultiStepLR(config.lr, config.milestones, dataset_size,
                                 config.warmup_epochs, config.epoch_size, config.lr_gamma))
     opt = nn.SGD(filter(lambda x: x.requires_grad, net.get_parameters()),
@@ -215,38 +205,41 @@ def main():
     model = Model(net)
 
     print("Start train NanoDet, the first epoch will be slower because of the graph compilation.")
-    summary = SummaryCollector(summary_dir="./summary_dir")
-    cb = [TimeMonitor(), LossMonitor(10), summary]
+    specified = {"collect_metric": True, "histogram_regular": "^conv1.*|^conv2.*", "collect_graph": True,
+                 "collect_dataset_graph": True}
+    summary = SummaryCollector(summary_dir="./summary_dir", collect_specified_data=specified,
+                               collect_freq=1, keep_default_action=False, collect_tensor_freq=1)
+    cb = [TimeMonitor(), LossMonitor(1), summary]
     cb += [Monitor(lr_init=lr.asnumpy())]
 
     config_ck = CheckpointConfig(save_checkpoint_steps=dataset_size * config.save_checkpoint_epochs,
                                  keep_checkpoint_max=config.keep_checkpoint_max)
     ckpt_cb = ModelCheckpoint(prefix="nanodet", directory=config.save_checkpoint_path, config=config_ck)
-    # ==========================================================================================================
 
-    # 分布式训练
+
     if config.distribute:
         if rank == 0:
             cb += [ckpt_cb]
-        model.train(config.epoch_size, dataset, callbacks=cb, dataset_sink_mode=True)
-        # model.train(config.epoch_size, dataset, callbacks=cb, dataset_sink_mode=False)
+        # model.train(config.epoch_size, dataset, callbacks=cb, dataset_sink_mode=True)
+        model.train(config.epoch_size, dataset, callbacks=cb, dataset_sink_mode=False)
     else:
         cb += [ckpt_cb]
-        model.train(config.epoch_size, dataset, callbacks=cb, dataset_sink_mode=True)
-        # model.train(config.epoch_size, dataset, callbacks=cb, dataset_sink_mode=False)
+        # model.train(config.epoch_size, dataset, callbacks=cb, dataset_sink_mode=True)
+        model.train(config.epoch_size, dataset, callbacks=cb, dataset_sink_mode=False)
 
 
 if __name__ == '__main__':
     main()
-    # mindrecord_file = os.path.join(config.mindrecord_dir, "retinanet.mindrecord0")
+    # mindrecord_file = os.path.join(config.mindrecord_dir, "nanodet.mindrecord0")
     # # loss_scale = float(config.loss_scale)
     # dataset = create_nanodet_dataset(mindrecord_file, repeat_num=1,
-    #                                    num_parallel_workers=1,
-    #                                    batch_size=1, device_num=1, rank=0)
+    #                                  num_parallel_workers=1,
+    #                                  batch_size=1, device_num=1, rank=0)
     # iterator = dataset.create_dict_iterator()
     # idx = 0
     # for item in iterator:
-    #     # print(item["pos_inds"])
-    #     print("idx",idx)
+    #     # if item["num_match"] == Tensor([[0]]):
+    #     # print(item["num_match"])
+    #     # print("idx",idx)
     #     idx = idx + 1
     # pass

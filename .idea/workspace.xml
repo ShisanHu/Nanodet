@@ -5002,6 +5002,11 @@
       <change afterPath="$PROJECT_DIR$/../models/official/cv/retinanet/cocodataset/val2017/000000581482.jpg" afterDir="false" />
       <change afterPath="$PROJECT_DIR$/../models/official/cv/retinanet/cocodataset/val2017/000000581615.jpg" afterDir="false" />
       <change afterPath="$PROJECT_DIR$/../models/official/cv/retinanet/cocodataset/val2017/000000581781.jpg" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/box_utilsII.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/box_utilsII.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lossTest.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/src/lossTest.ipynb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/nanodetII.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/nanodetII.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/train.py" beforeDir="false" afterPath="$PROJECT_DIR$/train.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../models/official/cv/retinanet/config/default_config.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/../models/official/cv/retinanet/config/default_config.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../models/official/cv/retinanet/create_data.py" beforeDir="false" afterPath="$PROJECT_DIR$/../models/official/cv/retinanet/create_data.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../models/official/cv/retinanet/eval.py" beforeDir="false" afterPath="$PROJECT_DIR$/../models/official/cv/retinanet/eval.py" afterDir="false" />
@@ -5244,6 +5249,7 @@
       <workItem from="1669776595510" duration="4365000" />
       <workItem from="1669806763316" duration="277000" />
       <workItem from="1669807476812" duration="4938000" />
+      <workItem from="1669880499739" duration="10221000" />
     </task>
     <servers />
   </component>
