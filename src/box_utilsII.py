@@ -302,6 +302,3 @@ def jaccard_numpy(box_a, box_b):
 #
 # # nanodet_bboxes_encode(None)
 #     print("1")
-
-
-

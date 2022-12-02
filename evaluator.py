@@ -211,8 +211,8 @@ def retinanet_eval():
 
         # [B, 2100, 80] [B, 2100, 32]
         # bboxes, scores
-        # output = net(Tensor(img_np), Tensor(image_shape))
-        output = net(Tensor(img_np), None)
+        output = net(Tensor(img_np), Tensor(image_shape))
+        # output = net(Tensor(img_np), None)
         # print(output[0])
         # return
         for batch_idx in range(img_np.shape[0]):

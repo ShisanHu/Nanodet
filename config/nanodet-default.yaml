@@ -26,7 +26,7 @@ is_training: True
 # ======================================================================================
 # Training options
 img_shape: [320, 320]
-num_nanodet_boxes: 2100
+num_retinanet_boxes: 67995
 match_thershold: 0.5
 nms_thershold: 0.6
 min_score: 0.1
@@ -37,10 +37,11 @@ lr: 0.14
 momentum: 0.9
 weight_decay: 0.0001
 milestones: [240,260,275]
+num_nanodet_boxes: 2100
 lr_gamma: 0.1
-warmup_epochs: 3
-epoch_size: 280
-batch_size: 192
+warmup_epochs: 0.1
+epoch_size: 300
+batch_size: 1
 
 # network
 extras_out_channels: [96, 96 ,96]
@@ -61,7 +62,7 @@ coco_root: "/home/ma-user/work/COCO2017"
 train_data_type: "train2017"
 val_data_type: "val2017"
 instances_set: "annotations/instances_{}.json"
-coco_classes: ["background", "person", "bicycle", "car", "motorcycle", "airplane", "bus",
+coco_classes: ["person", "bicycle", "car", "motorcycle", "airplane", "bus",
                      "train", "truck", "boat", "traffic light", "fire hydrant",
                      "stop sign", "parking meter", "bench", "bird", "cat", "dog",
                      "horse", "sheep", "cow", "elephant", "bear", "zebra",
@@ -97,7 +98,7 @@ workers: 24
 mode: "sink"
 pre_trained: ""
 pre_trained_epoch_size: 0
-loss_scale: 1024
+loss_scale: 1
 filter_weight: False
 
 # ======================================================================================

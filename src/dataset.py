@@ -28,9 +28,11 @@ from mindspore.mindrecord import FileWriter
 from src.model_utils.config import config
 from .box_utilsII import jaccard_numpy, nanodet_bboxes_encode
 
+
 def _rand(a=0., b=1.):
     """Generate random."""
     return np.random.rand() * (b - a) + a
+
 
 def get_imageId_from_fileName(filename):
     """Get imageID from fileName"""
@@ -38,6 +40,7 @@ def get_imageId_from_fileName(filename):
     if filename.isdigit():
         return int(filename)
     return id_iter
+
 
 # 对图片和bbox进行增强(无需修改!!!!!!!!!!!)
 def random_sample_crop(image, boxes):
@@ -139,9 +142,9 @@ def preprocess_fn(img_id, image, box, is_training):
         image = cv2.resize(image, (w, h))
 
         # Flip image or not
-        flip = _rand() < .5
-        if flip:
-            image = cv2.flip(image, 1, dst=None)
+        # flip = _rand() < .5
+        # if flip:
+        #     image = cv2.flip(image, 1, dst=None)
 
         # When the channels of image is 1
         if len(image.shape) == 2:
@@ -150,12 +153,12 @@ def preprocess_fn(img_id, image, box, is_training):
 
         # 对box进行 / image的大小
         # 归一化操作
-        box[:, [0, 2]] = box[:, [0, 2]] * (h / ih)
-        box[:, [1, 3]] = box[:, [1, 3]] * (w / iw)
+        box[:, [0, 2]] = box[:, [0, 2]] * (320 / ih)
+        box[:, [1, 3]] = box[:, [1, 3]] * (320 / iw)
 
-        if flip:
-            box[:, [1, 3]] = 1 - box[:, [3, 1]]
-
+        # if flip:
+        #     box[:, [1, 3]] = 1 - box[:, [3, 1]]
+        # print(box)
         # retinanet_bboxes_encode: 返回bboxes(正样本的Anchor 格式:中心点宽高), 正样本类别, 正样本数量
         # 注意!!!! 关键之处在这里!!!!!
         # 这里需要直接返回已经筛选出来的正样本Anchor, 正样本类别, 正样本数量
@@ -163,6 +166,8 @@ def preprocess_fn(img_id, image, box, is_training):
         # box xyxy
         res_boxes, res_labels, res_center_priors, num_match = nanodet_bboxes_encode(box)
         # return 对应
+        # print(image)
+        # print(box)
         return image, res_boxes, res_labels, res_center_priors, num_match
 
     return _data_aug(image, box, is_training, image_size=config.img_shape)
@@ -353,7 +358,7 @@ def filter_valid_data(image_dir, anno_path):
     return images, image_path_dict, image_anno_dict
 
 
-def voc_data_to_mindrecord(mindrecord_dir, is_training, prefix="retinanet.mindrecord", file_num=8):
+def voc_data_to_mindrecord(mindrecord_dir, is_training, prefix="nanodet.mindrecord", file_num=8):
     """Create MindRecord file by image_dir and anno_path."""
     mindrecord_path = os.path.join(mindrecord_dir, prefix)
     writer = FileWriter(mindrecord_path, file_num)
@@ -376,7 +381,8 @@ def voc_data_to_mindrecord(mindrecord_dir, is_training, prefix="retinanet.mindre
         writer.write_raw_data([row])
     writer.commit()
 
-def data_to_mindrecord_byte_image(dataset="coco", is_training=True, prefix="retinanet.mindrecord", file_num=8):
+
+def data_to_mindrecord_byte_image(dataset="coco", is_training=True, prefix="nanodet.mindrecord", file_num=8):
     """Create MindRecord file."""
     mindrecord_dir = config.mindrecord_dir
     mindrecord_path = os.path.join(mindrecord_dir, prefix)
@@ -403,11 +409,12 @@ def data_to_mindrecord_byte_image(dataset="coco", is_training=True, prefix="reti
         writer.write_raw_data([row])
     writer.commit()
 
+
 def create_nanodet_dataset(mindrecord_file, batch_size, repeat_num, device_num=1, rank=0,
-                             is_training=True, num_parallel_workers=8):
+                           is_training=True, num_parallel_workers=8):
     """Creatr retinanet dataset with MindDataset."""
     ds = de.MindDataset(mindrecord_file, columns_list=["img_id", "image", "annotation"], num_shards=device_num,
-                        shard_id=rank, num_parallel_workers=num_parallel_workers, shuffle=is_training)
+                        shard_id=rank, num_parallel_workers=num_parallel_workers, shuffle=False)
     decode = C.Decode()
     ds = ds.map(operations=decode, input_columns=["image"])
     change_swap_op = C.HWC2CHW()
@@ -449,7 +456,8 @@ def create_nanodet_dataset(mindrecord_file, batch_size, repeat_num, device_num=1
     # 第一要包含原始数据的的image, 经过正负样本筛选后的box, 经过正负样本筛选后的 label, 正样本数量
     return ds
 
-def create_mindrecord(dataset="coco", prefix="retinanet.mindrecord", is_training=True):
+
+def create_mindrecord(dataset="coco", prefix="nanodet.mindrecord", is_training=True):
     print("Start create dataset!")
     # It will generate mindrecord file in config.mindrecord_dir,
     # and the file name is retinanet.mindrecord0, 1, ... file_num.

@@ -12,6 +12,7 @@ from mindspore.context import ParallelMode
 from mindspore import Parameter
 from src.model_utils.config import config
 
+
 class DepthwiseConvModule(nn.Cell):
     def __init__(
             self,
@@ -83,6 +84,7 @@ class Distance2bbox(nn.Cell):
         x2 = points[..., 1] + distance[..., 2]
         return self.stack([y1, x1, y2, x2])
 
+
 class BBox2Distance(nn.Cell):
     def __init__(self):
         super(BBox2Distance, self).__init__()
@@ -99,6 +101,7 @@ class BBox2Distance(nn.Cell):
         bottom = C.clip_by_value(bottom, Tensor(0.0), Tensor(6.9))
         return self.stack((left, top, right, bottom))
 
+
 class ShuffleV2Block(nn.Cell):
     def __init__(self, inp, oup, stride):
         super(ShuffleV2Block, self).__init__()
@@ -110,7 +113,8 @@ class ShuffleV2Block(nn.Cell):
                 nn.BatchNorm2d(inp),
                 nn.Conv2d(inp, branch_features, kernel_size=1, stride=1, padding=0, has_bias=False),
                 nn.BatchNorm2d(branch_features),
-                nn.ReLU(),
+                # nn.ReLU(),
+                nn.LeakyReLU(alpha=0.1),
             ])
         else:
             self.branch1 = nn.SequentialCell()
@@ -125,7 +129,8 @@ class ShuffleV2Block(nn.Cell):
                 has_bias=False,
             ),
             nn.BatchNorm2d(branch_features),
-            nn.ReLU(),
+            # nn.ReLU(),
+            nn.LeakyReLU(alpha=0.1),
             self.depthwise_conv(
                 branch_features,
                 branch_features,
@@ -143,7 +148,8 @@ class ShuffleV2Block(nn.Cell):
                 has_bias=False,
             ),
             nn.BatchNorm2d(branch_features),
-            nn.ReLU(),
+            # nn.ReLU(),
+            nn.LeakyReLU(alpha=0.1),
         ])
 
     @staticmethod
@@ -193,8 +199,8 @@ class ShuffleNetV2(nn.Cell):
             nn.Conv2d(in_channels=3, out_channels=output_channels, kernel_size=3, stride=2,
                       pad_mode='pad', padding=1, has_bias=False),
             nn.BatchNorm2d(num_features=output_channels, momentum=0.9),
-            nn.ReLU(),
-            # nn.LeakyReLU(),
+            # nn.ReLU(),
+            nn.LeakyReLU(alpha=0.1),
         ])
 
         self.pad = nn.Pad(((0, 0), (0, 0), (1, 1), (1, 1)), "CONSTANT")
@@ -228,9 +234,12 @@ class ShuffleNetV2(nn.Cell):
             ShuffleV2Block(output_channels, output_channels, 1),
             ShuffleV2Block(output_channels, output_channels, 1),
         ])
+        self.tensor_summary = P.TensorSummary()
 
     def construct(self, x):
+        self.tensor_summary("img_tensor", x)
         x = self.conv1(x)
+        self.tensor_summary("backbone_conv1", x)
         x = self.pad(x)
         x = self.maxpool(x)
         C2 = self.stage2(x)
@@ -267,6 +276,7 @@ class NanoDet(nn.Cell):
         self.transpose = P.Transpose()
         self.slice = P.Slice()
         self._make_layer()
+        self.tensor_summary = P.TensorSummary()
 
     def _build_shared_head(self):
         cls_convs = nn.SequentialCell()
@@ -317,6 +327,7 @@ class NanoDet(nn.Cell):
 
     def construct(self, inputs):
         C2, C3, C4 = self.backbone(inputs)
+        self.tensor_summary("C3", C3)
         # 对齐通道
         P4 = self.lateral_convs[2](C4)
         P3 = self.lateral_convs[1](C3)
@@ -336,6 +347,8 @@ class NanoDet(nn.Cell):
         P3 = self.gfl_cls[1](P3)
         P2 = self.gfl_cls[0](P2)
 
+        self.tensor_summary("P3", P3)
+
         P4 = self.reshape(P4, (-1, 112, 100))
         P3 = self.reshape(P3, (-1, 112, 400))
         P2 = self.reshape(P2, (-1, 112, 1600))
@@ -345,6 +358,7 @@ class NanoDet(nn.Cell):
         cls_scores = self.slice(preds, (0, 0, 0), (-1, -1, 80))
         bbox_preds = self.slice(preds, (0, 0, 80), (-1, -1, -1))
         return cls_scores, bbox_preds
+
 
 class QualityFocalLoss(nn.Cell):
     def __init__(self, beta=2.0):
@@ -361,14 +375,17 @@ class QualityFocalLoss(nn.Cell):
         self.beta = beta
 
     def construct(self, logits, label, score):
+        # print(logits[0])
         logits_sigmoid = self.sigmoid(logits)
         label = self.onehot(label, F.shape(logits)[-1], self.on_value, self.off_value)
         score = self.tile(self.expand_dims(score, -1), (1, 1, F.shape(logits)[-1]))
         label = label * score
+
         sigmiod_cross_entropy = self.sigmiod_cross_entropy(logits, label)
         modulating_factor = self.pow(self.abs(label - logits_sigmoid), self.beta)
         qfl_loss = sigmiod_cross_entropy * modulating_factor
         return qfl_loss
+
 
 class DistributionFocalLoss(nn.Cell):
     def __init__(self):
@@ -389,8 +406,10 @@ class DistributionFocalLoss(nn.Cell):
         # dfl_loss = dfl_loss * self.loss_weight
         return dfl_loss
 
+
 class GIou(nn.Cell):
     """Calculating giou"""
+
     def __init__(self):
         super(GIou, self).__init__()
         self.cast = P.Cast()
@@ -428,6 +447,7 @@ class GIou(nn.Cell):
         giou = giou.squeeze(-1)
         return giou
 
+
 class Iou(nn.Cell):
     def __init__(self):
         super(Iou, self).__init__()
@@ -451,6 +471,7 @@ class Iou(nn.Cell):
         iou = self.div(self.cast(intersection, ms.float32), self.cast(union, ms.float32))
         iou = iou.squeeze(-1)
         return iou
+
 
 class NanoDetWithLossCell(nn.Cell):
     def __init__(self, network):
@@ -509,6 +530,7 @@ class NanoDetWithLossCell(nn.Cell):
         loss_dfl = self.reduce_sum(self.reduce_mean(loss_dfl, -1), -1)
         loss = self.reduce_sum((loss_qfl + 2.0 * loss_bbox + 0.25 * loss_dfl) / nums_match)
         return loss
+
 
 class TrainingWrapper(nn.Cell):
     def __init__(self, network, optimizer, sens=1.0):
@@ -582,7 +604,6 @@ class NanodetInferWithDecoder(nn.Cell):
             y2 = C.clip_by_value(y2, Tensor(0), Tensor(self.max_shape[0]))
             x2 = C.clip_by_value(x2, Tensor(0), Tensor(self.max_shape[1]))
         return self.stack([y1, x1, y2, x2])
-
 
 # if __name__ == "__main__":
 #     from mindspore.train.serialization import load_checkpoint, load_param_into_net
